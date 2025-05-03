@@ -27,8 +27,18 @@ SearchFace/
 │   ├── face_database.db # SQLiteデータベース
 │   └── face.index       # FAISSインデックス
 ├── src/                 # ソースコード
-│   ├── face_database.py # 顔データベース管理
-│   └── face_comparison.py # 顔比較処理
+│   ├── database/        # データベース関連
+│   │   ├── __init__.py
+│   │   ├── face_database.py  # 顔データベース管理
+│   │   └── db_utils.py       # データベースユーティリティ
+│   ├── face/           # 顔認識関連
+│   │   ├── __init__.py
+│   │   ├── face_comparison.py # 顔比較処理
+│   │   └── face_utils.py      # 顔認識ユーティリティ
+│   ├── utils/          # 共通ユーティリティ
+│   │   ├── __init__.py
+│   │   └── similarity.py      # 類似度計算
+│   └── main.py         # メインスクリプト
 └── docs/               # ドキュメント
     ├── design.md      # 設計資料
     └── api.md         # API仕様
