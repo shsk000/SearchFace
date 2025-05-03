@@ -174,3 +174,5 @@ cython_debug/
 .pypirc
 
 data/images
+data/face_database.db
+data/face.index

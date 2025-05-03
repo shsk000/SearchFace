@@ -3,7 +3,9 @@ import pickle
 import numpy as np
 from typing import List, Dict, Tuple, Optional
 from face_comparison import get_face_encodings
-import faiss  # 高速な類似度検索ライブラリ
+import faiss
+import sqlite3
+from datetime import datetime
 import json
 
 def _calculate_similarity_percentage(distance: float) -> float:
@@ -36,7 +38,7 @@ def _calculate_similarity_percentage(distance: float) -> float:
         return 50.0 + (ratio * 50.0)
 
 class FaceDatabase:
-    _instance = None  # シングルトン用
+    _instance = None
     
     def __new__(cls, *args, **kwargs):
         if cls._instance is None:
@@ -44,41 +46,67 @@ class FaceDatabase:
         return cls._instance
     
     def __init__(self, index_path: str = "data/face.index", 
-                 metadata_path: str = "data/face_metadata.json"):
-        if not hasattr(self, 'initialized'):  # 初期化済みかチェック
+                 db_path: str = "data/face_database.db"):
+        if not hasattr(self, 'initialized'):
             self.index_path = index_path
-            self.metadata_path = metadata_path
+            self.db_path = db_path
             self.index = None
-            self.metadata = {}  # 辞書型に変更
+            self._init_database()
             self._load_database()
             self.initialized = True
     
+    def _init_database(self):
+        """SQLiteデータベースの初期化"""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            # テーブルが存在しない場合のみ作成
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS faces (
+                    face_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    image_path TEXT NOT NULL,
+                    index_position INTEGER NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    metadata TEXT
+                )
+            ''')
+            conn.commit()
+    
     def _load_database(self):
-        """インデックスとメタデータをロード"""
+        """インデックスとデータベースをロード"""
         if os.path.exists(self.index_path):
             self.index = faiss.read_index(self.index_path)
-        if os.path.exists(self.metadata_path):
-            with open(self.metadata_path, 'r', encoding='utf-8') as f:
-                self.metadata = json.load(f)
+            print(f"既存のインデックスをロードしました（登録済みデータ数: {self.index.ntotal}）")
     
-    def add_face(self, encoding: np.ndarray, name: str, metadata: Optional[Dict] = None) -> bool:
+    def is_name_registered(self, name: str) -> bool:
+        """指定された名前が既にデータベースに登録されているか確認"""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT COUNT(*) FROM faces WHERE name = ?', (name,))
+            count = cursor.fetchone()[0]
+            return count > 0
+    
+    def add_face(self, encoding: np.ndarray, name: str, image_path: str, metadata: Optional[Dict] = None) -> bool:
         """新しい顔を追加"""
         try:
             if self.index is None:
                 self.index = faiss.IndexFlatL2(encoding.shape[0])
             
-            # IDを生成（現在のメタデータの最大ID + 1）
-            face_id = str(max([int(k) for k in self.metadata.keys()] + [0]) + 1)
-            
             # インデックスに追加
             self.index.add(np.array([encoding]).astype('float32'))
+            index_position = self.index.ntotal - 1
             
-            # メタデータを追加
-            self.metadata[face_id] = {
-                "name": name,
-                "metadata": metadata or {},
-                "index_position": self.index.ntotal - 1  # インデックス内の位置を保存
-            }
+            print(f"追加された顔のインデックス位置: {index_position}")  # デバッグ用
+            
+            # データベースに追加
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    INSERT INTO faces (name, image_path, index_position, metadata)
+                    VALUES (?, ?, ?, ?)
+                ''', (name, image_path, index_position, 
+                     json.dumps(metadata) if metadata else None))
+                conn.commit()
             
             self._save_database()
             return True
@@ -87,11 +115,9 @@ class FaceDatabase:
             return False
     
     def _save_database(self):
-        """インデックスとメタデータを保存"""
+        """インデックスを保存"""
         if self.index is not None:
             faiss.write_index(self.index, self.index_path)
-        with open(self.metadata_path, 'w', encoding='utf-8') as f:
-            json.dump(self.metadata, f, ensure_ascii=False)
     
     def search_similar_faces(self, query_encoding: np.ndarray, top_k: int = 5) -> List[Dict]:
         """類似顔を検索"""
@@ -103,30 +129,59 @@ class FaceDatabase:
         query = np.array([query_encoding]).astype('float32')
         distances, indices = self.index.search(query, min(top_k, self.index.ntotal))
         
+        print(f"検索結果のインデックス: {indices}")
+        print(f"検索結果の距離: {distances}")
+        
         results = []
-        for idx, dist in zip(indices[0], distances[0]):
-            if idx == -1:
-                continue
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
             
-            # インデックス位置からface_idを検索
-            face_id = next((k for k, v in self.metadata.items() 
-                          if v["index_position"] == idx), None)
+            # データベース内の全レコードを表示（デバッグ用）
+            cursor.execute('SELECT * FROM faces ORDER BY index_position')
+            all_faces = cursor.fetchall()
+            print("\nデータベース内の全レコード:")
+            for face in all_faces:
+                print(f"face_id: {face['face_id']}, name: {face['name']}, index_position: {face['index_position']}")
             
-            if face_id:
-                similarity = _calculate_similarity_percentage(dist)
-                results.append({
-                    **self.metadata[face_id],
-                    "face_id": face_id,
-                    "distance": float(dist),
-                    "similarity": float(similarity)
-                })
-                print(f"検出結果: インデックス={idx}, 距離={dist:.2f}, 類似率={similarity:.1f}%, 名前={self.metadata[face_id]['name']}")
+            for idx, dist in zip(indices[0], distances[0]):
+                if idx == -1:
+                    continue
+                
+                print(f"\n検索中のインデックス: {idx}")
+                # インデックス位置から顔データを検索（完全一致）
+                cursor.execute('''
+                    SELECT * FROM faces WHERE index_position = ? ORDER BY face_id LIMIT 1
+                ''', (int(idx),))
+                face_data = cursor.fetchone()
+                
+                if face_data:
+                    similarity = _calculate_similarity_percentage(dist)
+                    result = {
+                        "face_id": face_data["face_id"],
+                        "name": face_data["name"],
+                        "image_path": face_data["image_path"],
+                        "distance": float(dist),
+                        "similarity": float(similarity),
+                        "created_at": face_data["created_at"]
+                    }
+                    if face_data["metadata"]:
+                        result["metadata"] = json.loads(face_data["metadata"])
+                    
+                    results.append(result)
+                    print(f"検出結果: インデックス={idx}, 距離={dist:.2f}, 類似率={similarity:.1f}%, 名前={face_data['name']}")
+                else:
+                    print(f"警告: インデックス {idx} に対応する顔データが見つかりません")
+        
+        if not results:
+            print("\n警告: 検索結果が0件でした")
         
         return results
 
 def batch_add_faces(database: FaceDatabase, image_dir: str, name_mapping: Dict[str, str]):
     """
     ディレクトリ内の画像を一括でデータベースに追加します
+    既に登録済みの名前はスキップします
     
     Args:
         database (FaceDatabase): 顔データベース
@@ -134,17 +189,23 @@ def batch_add_faces(database: FaceDatabase, image_dir: str, name_mapping: Dict[s
         name_mapping (Dict[str, str]): ファイル名から人物名へのマッピング
     """
     print("\nデータベースに追加する画像:")
-    for filename in name_mapping.keys():  # name_mappingのキーのみを処理
+    for filename in name_mapping.keys():
         if filename.endswith(('.jpg', '.jpeg', '.png')):
             image_path = os.path.join(image_dir, filename)
             name = name_mapping[filename]
+            
+            # 既に登録済みの場合はスキップ
+            if database.is_name_registered(name):
+                print(f"- {filename} -> {name} (スキップ: 既に登録済み)")
+                continue
+                
             print(f"- {filename} -> {name}")
             
             # 画像から顔エンコーディングを取得
             encodings, _ = get_face_encodings(image_path)
             if encodings:
                 # 最初に検出された顔のみを使用
-                database.add_face(encodings[0], name)
+                database.add_face(encodings[0], name, image_path)
                 print(f"  追加成功: {name}")
             else:
                 print(f"  警告: {filename}から顔を検出できませんでした")
