@@ -4,77 +4,90 @@ import faiss
 import numpy as np
 from typing import List, Dict, Any, Optional, Tuple
 from . import db_utils
-from src.face import face_utils
+from face import face_utils
+import sqlite3
 
 class FaceDatabase:
-    def __init__(self, db_path: str = "data/face_database.db", index_path: str = "data/face.index"):
-        """
-        顔データベースを初期化する
-        
+    # データベース関連の設定
+    DB_PATH = "data/face_database.db"
+    INDEX_PATH = "data/face.index"
+    VECTOR_DIMENSION = 128  # face_recognitionのエンコーディング次元
+
+    def __init__(self):
+        """顔データベースの初期化"""
+        self.conn = sqlite3.connect(self.DB_PATH)
+        self.cursor = self.conn.cursor()
+        self._create_tables()
+        self._load_index()
+
+    def _create_tables(self):
+        """データベースのテーブルを作成"""
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS faces (
+                face_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                image_path TEXT NOT NULL,
+                index_position INTEGER NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                metadata TEXT
+            )
+        """)
+        self.conn.commit()
+
+    def _load_index(self):
+        """FAISSインデックスをロードまたは新規作成"""
+        try:
+            self.index = faiss.read_index(self.INDEX_PATH)
+        except (RuntimeError, FileNotFoundError):
+            # インデックスが存在しない場合は新規作成
+            self.index = faiss.IndexFlatL2(self.VECTOR_DIMENSION)
+            faiss.write_index(self.index, self.INDEX_PATH)
+
+    def add_face(self, name: str, image_path: str, encoding: np.ndarray, metadata: Optional[Dict] = None) -> int:
+        """顔データをデータベースに追加
+
         Args:
-            db_path (str): データベースファイルのパス
-            index_path (str): FAISSインデックスファイルのパス
-        """
-        self.db_path = db_path
-        self.index_path = index_path
-        
-        # データベース接続を作成
-        self.conn = db_utils.create_connection(db_path)
-        db_utils.init_database(self.conn)
-        
-        # FAISSインデックスを初期化
-        self.dimension = 128  # face_recognitionのエンコーディング次元
-        self.index = self._load_or_create_index()
-    
-    def _load_or_create_index(self) -> faiss.IndexFlatL2:
-        """
-        FAISSインデックスを読み込むか新規作成する
-        
-        Returns:
-            faiss.IndexFlatL2: FAISSインデックス
-        """
-        if os.path.exists(self.index_path):
-            print("既存のインデックスを読み込みます")
-            return faiss.read_index(self.index_path)
-        else:
-            print("新しいインデックスを作成します")
-            return faiss.IndexFlatL2(self.dimension)
-    
-    def add_face(self, name: str, image_path: str, metadata: Dict[str, Any] = None) -> bool:
-        """
-        顔データを追加する
-        
-        Args:
-            name (str): 名前
+            name (str): 人物名
             image_path (str): 画像ファイルのパス
-            metadata (Dict[str, Any], optional): メタデータ
-            
+            encoding (np.ndarray): 顔エンコーディング
+            metadata (Optional[Dict]): メタデータ
+
         Returns:
-            bool: 追加に成功したかどうか
+            int: 追加された顔のID（既存の場合は既存のID）
         """
-        # 既に登録されているかチェック
-        if db_utils.get_face_by_name(self.conn, name):
-            print(f"既に登録されています: {name}")
-            return False
-        
-        # 顔のエンコーディングを取得
-        encoding = face_utils.get_face_encoding(image_path)
-        if encoding is None:
-            return False
-        
-        # FAISSインデックスに追加
-        index_position = self.index.ntotal
-        self.index.add(np.array([encoding]))
-        
-        # データベースに追加
-        metadata_str = json.dumps(metadata) if metadata else None
-        db_utils.insert_face(self.conn, name, image_path, index_position, metadata_str)
-        
-        # インデックスを保存
-        faiss.write_index(self.index, self.index_path)
-        
-        print(f"顔データを追加しました: {name}")
-        return True
+        try:
+            # 既に登録されているかチェック
+            self.cursor.execute("SELECT face_id FROM faces WHERE name = ?", (name,))
+            existing_face = self.cursor.fetchone()
+            if existing_face:
+                print(f"既に登録されています: {name}")
+                return existing_face[0]
+
+            # トランザクション開始
+            self.conn.execute("BEGIN TRANSACTION")
+            
+            # データベースに追加
+            self.cursor.execute(
+                "INSERT INTO faces (name, image_path, index_position, metadata) VALUES (?, ?, ?, ?)",
+                (name, image_path, self.index.ntotal, json.dumps(metadata) if metadata else None)
+            )
+            face_id = self.cursor.lastrowid
+            
+            # FAISSインデックスに追加
+            self.index.add(np.array([encoding], dtype=np.float32))
+            
+            # インデックスを保存
+            faiss.write_index(self.index, self.INDEX_PATH)
+            
+            # トランザクションコミット
+            self.conn.commit()
+            
+            return face_id
+            
+        except Exception as e:
+            # エラー発生時はロールバック
+            self.conn.rollback()
+            raise Exception(f"顔データの追加に失敗しました: {str(e)}")
     
     def search_similar_faces(self, query_encoding: np.ndarray, top_k: int = 5) -> List[Dict[str, Any]]:
         """

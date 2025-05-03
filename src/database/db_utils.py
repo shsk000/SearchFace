@@ -107,4 +107,12 @@ def get_all_faces(conn: sqlite3.Connection) -> List[Dict[str, Any]]:
     """
     cursor = conn.cursor()
     cursor.execute('SELECT * FROM faces')
-    return [dict(row) for row in cursor.fetchall()] 
+    rows = cursor.fetchall()
+    return [{
+        'face_id': row[0],
+        'name': row[1],
+        'image_path': row[2],
+        'index_position': row[3],
+        'created_at': row[4],
+        'metadata': row[5]
+    } for row in rows] 
