@@ -37,7 +37,7 @@ def main():
         # 登録された顔データの表示
         print("\n登録されている顔データ:")
         for face in db.get_all_faces():
-            print(f"ID: {face['face_id']}, 名前: {face['name']}")
+            print(f"ID: {face['person_id']}, 名前: {face['name']}")
         
         # 検索用の画像
         query_image = "data/images/input.jpg"
