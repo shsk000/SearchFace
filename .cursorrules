@@ -25,14 +25,13 @@
 
 ## 開発環境
 - Python: 3.8以上
-- 依存関係管理: pyproject.toml
+- 依存関係管理: requirements.txt
 
 ## ディレクトリ構成
 ```
 SearchFace/
 ├── .cursorrules          # プロジェクト設定
-├── pyproject.toml        # Poetry設定ファイル
-├── poetry.lock          # 依存関係ロックファイル
+├── requirements.txt      # 依存関係ファイル
 ├── data/                 # データディレクトリ
 │   ├── images/          # 顔画像保存用
 │   │   ├── base/       # 基準画像ディレクトリ
@@ -53,10 +52,18 @@ SearchFace/
 │   │   ├── __init__.py
 │   │   ├── face_comparison.py # 顔比較処理
 │   │   └── face_utils.py      # 顔認識ユーティリティ
+│   ├── image/          # 画像処理関連
+│   │   ├── __init__.py
+│   │   ├── collector.py       # 画像収集
+│   │   ├── download.py        # 画像ダウンロード
+│   │   ├── search.py          # 画像検索
+│   │   └── storage.py         # 画像保存
 │   ├── utils/          # 共通ユーティリティ
 │   │   ├── __init__.py
 │   │   └── similarity.py      # 類似度計算
-│   └── main.py         # メインスクリプト
+│   ├── main.py         # メインスクリプト
+│   └── test_image_collector.py # 画像収集テスト
+├── tests/              # テストコード
 └── docs/               # ドキュメント
     ├── design.md      # 設計資料
     └── api.md         # API仕様
