@@ -86,7 +86,7 @@ export default function Home() {
   return (
     <main className="relative min-h-screen bg-[#111] text-white flex items-center justify-center p-4 overflow-hidden">
       {/* 背景画像を複数枚並べて表示 */}
-      <div className="fixed z-0 grid grid-cols-4 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 w-full h-full pointer-events-none top-0 left-0 right-0 bottom-0 mx-auto">
+      <div className="fixed z-0 grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-8 w-full h-full pointer-events-none top-0 left-0 right-0 bottom-0 mx-auto">
         {bgImages.map((url, idx) => (
           <div key={idx} className="w-full h-full aspect-[1/1.361] relative">
             <img
