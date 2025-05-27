@@ -5,6 +5,7 @@ import numpy as np
 from typing import List, Dict, Any, Optional, Tuple
 from . import db_utils
 from face import face_utils
+from utils import image_utils
 import sqlite3
 import logging
 
@@ -42,9 +43,10 @@ class FaceDatabase:
                 image_id INTEGER PRIMARY KEY AUTOINCREMENT,
                 person_id INTEGER NOT NULL,
                 image_path TEXT NOT NULL,
+                image_hash TEXT NOT NULL UNIQUE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 metadata TEXT,
-                FOREIGN KEY (person_id) REFERENCES persons(person_id)
+                FOREIGN KEY (person_id) REFERENCES persons(person_id) ON DELETE CASCADE
             )
         """)
 
@@ -55,7 +57,8 @@ class FaceDatabase:
                 image_id INTEGER NOT NULL,
                 index_position INTEGER NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (image_id) REFERENCES face_images(image_id)
+                FOREIGN KEY (image_id) REFERENCES face_images(image_id) ON DELETE CASCADE,
+                UNIQUE(image_id, index_position)
             )
         """)
 
@@ -64,6 +67,7 @@ class FaceDatabase:
         self.cursor.execute("CREATE INDEX IF NOT EXISTS idx_face_images_person_id ON face_images(person_id)")
         self.cursor.execute("CREATE INDEX IF NOT EXISTS idx_face_indexes_image_id ON face_indexes(image_id)")
         self.cursor.execute("CREATE INDEX IF NOT EXISTS idx_face_indexes_position ON face_indexes(index_position)")
+        # image_hashはUNIQUE制約があるため、インデックスは不要
 
         self.conn.commit()
 
@@ -71,19 +75,27 @@ class FaceDatabase:
         """FAISSインデックスをロードまたは新規作成"""
         try:
             logger.info("既存のインデックスを読み込み中...")
+            if not os.path.exists(self.INDEX_PATH):
+                logger.warning(f"インデックスファイルが存在しません: {self.INDEX_PATH}")
+                raise FileNotFoundError("インデックスファイルが存在しません")
+                
             self.index = faiss.read_index(self.INDEX_PATH)
-            # インデックスが空でないことを確認
+            logger.info(f"インデックスの読み込み完了。登録ベクトル数: {self.index.ntotal}")
+            
+            # インデックスが空の場合は再構築
             if self.index.ntotal == 0:
                 logger.warning("インデックスが空です。再構築を開始します。")
                 raise RuntimeError("インデックスが空です")
-            logger.info(f"インデックスの読み込み完了。登録ベクトル数: {self.index.ntotal}")
-        except (RuntimeError, FileNotFoundError):
-            logger.info("インデックスの再構築を開始します...")
-            # データベースから既存のエンコーディングを取得
+                
+        except (RuntimeError, FileNotFoundError) as e:
+            logger.info(f"インデックスの再構築を開始します... (理由: {str(e)})")
+            # データベースから既存のエンコーディングを取得（index_positionでソート）
             self.cursor.execute("""
-                SELECT fi.image_id, fi.person_id, p.name, fi.image_path, fi.metadata
+                SELECT fi.image_id, fi.person_id, p.name, fi.image_path, fi.metadata, fxi.index_position
                 FROM face_images fi
                 JOIN persons p ON fi.person_id = p.person_id
+                JOIN face_indexes fxi ON fi.image_id = fxi.image_id
+                ORDER BY fxi.index_position
             """)
             faces = self.cursor.fetchall()
             
@@ -98,7 +110,7 @@ class FaceDatabase:
                 failed_encodings = 0
                 
                 for face in faces:
-                    logger.info(f"画像のエンコーディングを取得中: {face[3]}")  # image_path
+                    logger.info(f"画像のエンコーディングを取得中: {face[3]} (index_position: {face[5]})")  # image_path, index_position
                     encoding = face_utils.get_face_encoding(face[3])
                     if encoding is not None:
                         encodings.append(encoding)
@@ -125,28 +137,29 @@ class FaceDatabase:
             os.makedirs(os.path.dirname(self.INDEX_PATH), exist_ok=True)
             faiss.write_index(self.index, self.INDEX_PATH)
             logger.info(f"インデックスの保存が完了しました。保存先: {self.INDEX_PATH}")
+            
+            # インデックスの状態を確認
+            logger.info(f"最終的なインデックスの状態: ベクトル数 = {self.index.ntotal}")
 
-    def add_face(self, name: str, image_path: str, encoding: np.ndarray, metadata: Optional[Dict] = None) -> int:
+    def add_face(self, name: str, image_path: str, encoding: np.ndarray, image_hash: str, metadata: Optional[Dict] = None) -> int:
         """顔データをデータベースに追加
 
         Args:
             name (str): 人物名
             image_path (str): 画像ファイルのパス
             encoding (np.ndarray): 顔エンコーディング
+            image_hash (str): 画像のハッシュ値
             metadata (Optional[Dict]): メタデータ
 
         Returns:
             int: 追加された顔画像のID
+
+        Raises:
+            sqlite3.IntegrityError: 同じハッシュ値の画像が既に存在する場合
+            Exception: その他のエラーが発生した場合
         """
         try:
             self.conn.execute("BEGIN TRANSACTION")
-
-            # 画像が既に登録済みかチェック
-            self.cursor.execute("SELECT image_id FROM face_images WHERE image_path = ?", (image_path,))
-            existing_image = self.cursor.fetchone()
-            if existing_image:
-                self.conn.rollback()
-                return existing_image[0]  # 既存の画像IDを返す
 
             # 人物情報の取得または作成
             self.cursor.execute("SELECT person_id FROM persons WHERE name = ?", (name,))
@@ -160,25 +173,42 @@ class FaceDatabase:
                 )
                 person_id = self.cursor.lastrowid
 
-            # 画像情報の追加
-            self.cursor.execute(
-                "INSERT INTO face_images (person_id, image_path, metadata) VALUES (?, ?, ?)",
-                (person_id, image_path, json.dumps(metadata) if metadata else None)
-            )
-            image_id = self.cursor.lastrowid
+            try:
+                # 画像情報の追加（UNIQUE制約により重複時はエラー）
+                self.cursor.execute(
+                    "INSERT INTO face_images (person_id, image_path, image_hash, metadata) VALUES (?, ?, ?, ?)",
+                    (person_id, image_path, image_hash, json.dumps(metadata) if metadata else None)
+                )
+                image_id = self.cursor.lastrowid
 
-            # FAISSインデックスに追加（個別のインデックスとして）
-            self.index.add(np.array([encoding], dtype=np.float32))
-            index_position = self.index.ntotal - 1
+                # FAISSインデックスに追加（個別のインデックスとして）
+                self.index.add(np.array([encoding], dtype=np.float32))
+                index_position = self.index.ntotal - 1
 
-            # インデックス情報の追加
-            self.cursor.execute(
-                "INSERT INTO face_indexes (image_id, index_position) VALUES (?, ?)",
-                (image_id, index_position)
-            )
+                # インデックス情報の追加
+                self.cursor.execute(
+                    "INSERT INTO face_indexes (image_id, index_position) VALUES (?, ?)",
+                    (image_id, index_position)
+                )
 
-            self.conn.commit()
-            return image_id
+                # インデックスを保存
+                logger.info(f"インデックスを保存中... (現在のベクトル数: {self.index.ntotal})")
+                os.makedirs(os.path.dirname(self.INDEX_PATH), exist_ok=True)
+                faiss.write_index(self.index, self.INDEX_PATH)
+                logger.info(f"インデックスの保存が完了しました。保存先: {self.INDEX_PATH}")
+
+                self.conn.commit()
+                return image_id
+
+            except sqlite3.IntegrityError as e:
+                if "UNIQUE constraint failed: face_images.image_hash" in str(e):
+                    logger.info(f"同じ画像が既に登録されています: {image_path}")
+                    # 既存の画像IDを取得
+                    self.cursor.execute("SELECT image_id FROM face_images WHERE image_hash = ?", (image_hash,))
+                    existing_image = self.cursor.fetchone()
+                    self.conn.rollback()
+                    return existing_image[0] if existing_image else None
+                raise
 
         except Exception as e:
             self.conn.rollback()
