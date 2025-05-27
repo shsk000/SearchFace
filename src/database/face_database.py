@@ -6,6 +6,10 @@ from typing import List, Dict, Any, Optional, Tuple
 from . import db_utils
 from face import face_utils
 import sqlite3
+import logging
+
+# ロギングの設定
+logger = logging.getLogger(__name__)
 
 class FaceDatabase:
     # データベース関連の設定
@@ -66,20 +70,61 @@ class FaceDatabase:
     def _load_index(self):
         """FAISSインデックスをロードまたは新規作成"""
         try:
+            logger.info("既存のインデックスを読み込み中...")
             self.index = faiss.read_index(self.INDEX_PATH)
+            # インデックスが空でないことを確認
+            if self.index.ntotal == 0:
+                logger.warning("インデックスが空です。再構築を開始します。")
+                raise RuntimeError("インデックスが空です")
+            logger.info(f"インデックスの読み込み完了。登録ベクトル数: {self.index.ntotal}")
         except (RuntimeError, FileNotFoundError):
-            # IVFインデックスの作成（より高精度な検索のために）
-            quantizer = faiss.IndexFlatL2(self.VECTOR_DIMENSION)
-            nlist = 100  # クラスタ数（データ量に応じて調整）
-            self.index = faiss.IndexIVFFlat(quantizer, self.VECTOR_DIMENSION, nlist)
+            logger.info("インデックスの再構築を開始します...")
+            # データベースから既存のエンコーディングを取得
+            self.cursor.execute("""
+                SELECT fi.image_id, fi.person_id, p.name, fi.image_path, fi.metadata
+                FROM face_images fi
+                JOIN persons p ON fi.person_id = p.person_id
+            """)
+            faces = self.cursor.fetchall()
             
-            # トレーニング用のダミーデータを生成（nlist以上のデータポイントが必要）
-            training_data = np.random.rand(nlist, self.VECTOR_DIMENSION).astype(np.float32)
-            self.index.train(training_data)
+            if not faces:
+                logger.warning("データベースに登録されている画像がありません。空のインデックスを作成します。")
+                self.index = faiss.IndexFlatL2(self.VECTOR_DIMENSION)
+            else:
+                logger.info(f"データベースから {len(faces)} 件の画像情報を取得しました。")
+                # 既存のデータからインデックスを再構築
+                encodings = []
+                successful_encodings = 0
+                failed_encodings = 0
+                
+                for face in faces:
+                    logger.info(f"画像のエンコーディングを取得中: {face[3]}")  # image_path
+                    encoding = face_utils.get_face_encoding(face[3])
+                    if encoding is not None:
+                        encodings.append(encoding)
+                        successful_encodings += 1
+                    else:
+                        failed_encodings += 1
+                        logger.warning(f"エンコーディングの取得に失敗: {face[3]}")
+                
+                logger.info(f"エンコーディングの取得結果: 成功 {successful_encodings}件, 失敗 {failed_encodings}件")
+                
+                if encodings:
+                    # エンコーディングが存在する場合は、それらを使用してインデックスを構築
+                    logger.info("インデックスの構築を開始します...")
+                    encodings = np.array(encodings, dtype=np.float32)
+                    self.index = faiss.IndexFlatL2(self.VECTOR_DIMENSION)
+                    self.index.add(encodings)
+                    logger.info(f"インデックスの構築が完了しました。登録ベクトル数: {self.index.ntotal}")
+                else:
+                    logger.warning("有効なエンコーディングがありません。空のインデックスを作成します。")
+                    self.index = faiss.IndexFlatL2(self.VECTOR_DIMENSION)
             
             # インデックスを保存
+            logger.info("インデックスを保存中...")
             os.makedirs(os.path.dirname(self.INDEX_PATH), exist_ok=True)
             faiss.write_index(self.index, self.INDEX_PATH)
+            logger.info(f"インデックスの保存が完了しました。保存先: {self.INDEX_PATH}")
 
     def add_face(self, name: str, image_path: str, encoding: np.ndarray, metadata: Optional[Dict] = None) -> int:
         """顔データをデータベースに追加
