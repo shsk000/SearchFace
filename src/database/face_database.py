@@ -7,10 +7,10 @@ from . import db_utils
 from face import face_utils
 from utils import image_utils
 import sqlite3
-import logging
+from utils import log_utils
 
 # ロギングの設定
-logger = logging.getLogger(__name__)
+logger = log_utils.get_logger(__name__)
 
 class FaceDatabase:
     # データベース関連の設定
@@ -283,4 +283,4 @@ class FaceDatabase:
 
     def close(self):
         """データベース接続を閉じる"""
-        self.conn.close() 
+        self.conn.close()

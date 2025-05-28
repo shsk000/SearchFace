@@ -1,9 +1,9 @@
 import hashlib
 from PIL import Image
 import io
-import logging
+from utils import log_utils
 
-logger = logging.getLogger(__name__)
+logger = log_utils.get_logger(__name__)
 
 def calculate_image_hash(image_path: str) -> str:
     """
@@ -26,4 +26,4 @@ def calculate_image_hash(image_path: str) -> str:
             return hashlib.sha256(img_byte_arr).hexdigest()
     except Exception as e:
         logger.error(f"画像ハッシュの計算に失敗しました: {str(e)}")
-        return "" 
+        return ""

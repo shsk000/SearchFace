@@ -2,16 +2,13 @@ import os
 from database.face_database import FaceDatabase
 from face import face_utils
 from utils import image_utils
-import logging
 import argparse
 from datetime import datetime
+from utils import log_utils
 
-# ロギングの設定
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+# ロギングの初期化
+log_utils.setup_logging()
+logger = log_utils.get_logger(__name__)
 
 def register_faces_from_directory(db: FaceDatabase, directory: str, source_type: str):
     """
@@ -162,4 +159,4 @@ def main():
         register_all_faces()
 
 if __name__ == "__main__":
-    main() 
+    main()

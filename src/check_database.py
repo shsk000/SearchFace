@@ -1,12 +1,9 @@
 from database.face_database import FaceDatabase
-import logging
+from utils import log_utils
 
-# ロギングの設定
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+# ロギングの初期化
+log_utils.setup_logging()
+logger = log_utils.get_logger(__name__)
 
 def check_database():
     """
@@ -45,4 +42,4 @@ def check_database():
         db.close()
 
 if __name__ == "__main__":
-    check_database() 
+    check_database()

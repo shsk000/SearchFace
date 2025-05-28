@@ -9,9 +9,13 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 import os
 from dotenv import load_dotenv
+from utils import log_utils
 
 # 環境変数の読み込み
 load_dotenv()
+
+# ロガーの設定
+logger = log_utils.get_logger(__name__)
 
 class ImageSearcher:
     """画像検索クラス"""
@@ -44,7 +48,7 @@ class ImageSearcher:
         try:
             # 検索クエリの最適化
             optimized_query = f"{query} 女優"
-            print(f"検索クエリ: {optimized_query}")
+            logger.info(f"検索クエリ: {optimized_query}")
             
             # 画像検索の実行
             result = self.service.cse().list(
@@ -61,14 +65,14 @@ class ImageSearcher:
                 url = item["link"]
                 mime = item.get("mime", "不明")
                 file_format = item.get("fileFormat", "不明")
-                print(f"検出画像: {url}")
-                print(f"  MIME: {mime}")
-                print(f"  形式: {file_format}")
+                logger.debug(f"検出画像: {url}")
+                logger.debug(f"  MIME: {mime}")
+                logger.debug(f"  形式: {file_format}")
                 image_urls.append(url)
             
-            print(f"\n検索結果: {len(image_urls)}件の画像URLを取得")
+            logger.info(f"検索結果: {len(image_urls)}件の画像URLを取得")
             return image_urls
             
         except Exception as e:
-            print(f"エラー: 画像検索に失敗: {str(e)}")
-            return [] 
+            logger.error(f"画像検索に失敗: {str(e)}")
+            return []

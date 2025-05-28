@@ -2,14 +2,11 @@ import os
 import argparse
 from database.face_database import FaceDatabase
 from face import face_utils
-import logging
+from utils import log_utils
 
-# ロギングの設定
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+# ロギングの初期化
+log_utils.setup_logging()
+logger = log_utils.get_logger(__name__)
 
 def search_similar_faces(query_image_path: str, top_k: int = 5):
     """
@@ -74,4 +71,4 @@ def main():
     search_similar_faces(args.query_image, args.top_k)
 
 if __name__ == "__main__":
-    main() 
+    main()

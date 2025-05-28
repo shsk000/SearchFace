@@ -7,6 +7,10 @@
 import hashlib
 from pathlib import Path
 from typing import Optional
+from utils import log_utils
+
+# ロガーの設定
+logger = log_utils.get_logger(__name__)
 
 class ImageStorage:
     """画像保存クラス"""
@@ -60,16 +64,16 @@ class ImageStorage:
             
             # 既に同じファイルが存在するかチェック
             if image_path.exists():
-                print(f"情報: 同一内容の画像が既に存在します: {image_path}")
+                logger.info(f"同一内容の画像が既に存在します: {image_path}")
                 return True
             
             # 画像の保存
             with open(image_path, "wb") as f:
                 f.write(image_data)
             
-            print(f"画像を保存しました: {image_path}")
+            logger.info(f"画像を保存しました: {image_path}")
             return True
             
         except Exception as e:
-            print(f"エラー: 画像の保存に失敗: {str(e)}")
+            logger.error(f"画像の保存に失敗: {str(e)}")
             return False

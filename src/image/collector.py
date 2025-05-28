@@ -12,17 +12,17 @@ from PIL import Image
 from io import BytesIO
 from pathlib import Path
 from dotenv import load_dotenv
-import logging
 
 from .search import ImageSearcher
 from .download import ImageDownloader
 from .storage import ImageStorage
+from utils import log_utils
 
 # 環境変数の読み込み
 load_dotenv()
 
 # ロガーの設定
-logger = logging.getLogger(__name__)
+logger = log_utils.get_logger(__name__)
 
 class ImageCollector:
     """画像収集クラス"""
@@ -52,11 +52,11 @@ class ImageCollector:
             image = face_recognition.load_image_file(base_image_path)
             encodings = face_recognition.face_encodings(image)
             if not encodings:
-                print(f"警告: 基準画像から顔を検出できません: {base_image_path}")
+                logger.warning(f"基準画像から顔を検出できません: {base_image_path}")
                 return None
             return encodings[0]
         except Exception as e:
-            print(f"エラー: 基準画像の処理に失敗: {str(e)}")
+            logger.error(f"基準画像の処理に失敗: {str(e)}")
             return None
 
     def validate_image(self, image_data: bytes, base_encoding: np.ndarray) -> Tuple[bool, Optional[np.ndarray]]:
@@ -157,12 +157,12 @@ class ImageCollector:
                     validation_result = "invalid"
             except Exception as e:
                 validation_result = "error"
-                print(f"エラー: 画像の検証に失敗: {str(e)}")
+                logger.error(f"画像の検証に失敗: {str(e)}")
             
             # すべての画像を保存
             self.storage.save_image(image_data, person_name, download_count, validation_result)
         
-        print(f"\n{person_name}の結果:")
-        print(f"- ダウンロードした画像数: {download_count}")
-        print(f"- 有効な画像数: {collected_count}")
-        return collected_count 
+        logger.info(f"\n{person_name}の結果:")
+        logger.info(f"- ダウンロードした画像数: {download_count}")
+        logger.info(f"- 有効な画像数: {collected_count}")
+        return collected_count

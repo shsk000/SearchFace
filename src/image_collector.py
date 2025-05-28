@@ -17,16 +17,13 @@
 
 import os
 import argparse
-import logging
 from pathlib import Path
 from image.collector import ImageCollector
+from utils import log_utils
 
-# ロガーの設定
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+# ロギングの初期化
+log_utils.setup_logging()
+logger = log_utils.get_logger(__name__)
 
 def process_directory(base_dir: str, target_dir: str = None):
     """指定されたディレクトリの画像を処理
@@ -95,4 +92,4 @@ def main():
     process_directory(base_dir, args.target)
 
 if __name__ == "__main__":
-    main() 
+    main()
