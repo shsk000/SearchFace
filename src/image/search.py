@@ -47,7 +47,7 @@ class ImageSearcher:
         """
         try:
             # 検索クエリの最適化
-            optimized_query = f"{query} 女優"
+            optimized_query = f"{query} av女優"
             logger.info(f"検索クエリ: {optimized_query}")
             
             # 画像検索の実行

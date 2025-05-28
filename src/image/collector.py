@@ -35,7 +35,7 @@ class ImageCollector:
         self.downloader = ImageDownloader()
         self.storage = ImageStorage()
 
-        self.similarity_threshold = float("0.6");
+        self.similarity_threshold = float("0.55");
         self.max_faces_threshold = int(os.getenv("MAX_FACES_THRESHOLD", "1"))
         logger.info(f"類似度閾値: {self.similarity_threshold}, 最大顔検出数: {self.max_faces_threshold}")
 
