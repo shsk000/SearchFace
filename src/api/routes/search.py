@@ -60,8 +60,8 @@ async def search_faces(image: UploadFile = File(...)):
                 SearchResult(
                     name=result["name"],
                     similarity=float(similarity),
-                    image_path=result["image_path"],
-                    metadata=result["metadata"]
+                    distance=float(result["distance"]),
+                    image_path=result["image_path"]
                 )
             )
         

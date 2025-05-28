@@ -65,4 +65,17 @@ Alternatives Considered:
 - データベースで処理済みディレクトリを管理する
 - ファイルのタイムスタンプで新規追加を判断する
 
+### 顔の類似検索APIの実装 (2025-05-28)
+FastAPIを使用した顔画像類似検索APIを実装し、画像アップロードによる検索機能を提供
+
+**Status:** accepted
+**Impact:** src/api/ ディレクトリに実装されたAPIコード、src/face/face_utils.pyの拡張、src/run_api.pyの追加
+
+Rationale:
+既存の顔認識・類似検索機能をWebアプリケーションから利用できるようにするため、FastAPIベースのAPIを実装した。検索結果数は3で固定し、応答時間500ms以内を目標とした。
+
+Alternatives Considered:
+- Flaskを使用したAPI実装
+- コマンドラインツールのみの提供
+
 ## Pending Decisions

@@ -5,8 +5,8 @@ class SearchResult(BaseModel):
     """検索結果の1アイテムを表すモデル"""
     name: str
     similarity: float
+    distance: float
     image_path: str
-    metadata: Optional[Dict[str, Any]] = None
 
 class SearchResponse(BaseModel):
     """検索レスポンス全体を表すモデル"""
