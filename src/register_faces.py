@@ -29,8 +29,13 @@ def register_faces_from_directory(db: FaceDatabase, directory: str, source_type:
             
         logger.info(f"人物ディレクトリを処理中: {person_dir}")
         
-        # 人物ディレクトリ内の画像を処理
+        # 人物ディレクトリ直下の画像のみを処理（サブディレクトリは除外）
         for filename in os.listdir(person_path):
+            # サブディレクトリはスキップ
+            if os.path.isdir(os.path.join(person_path, filename)):
+                continue
+                
+            # 画像ファイルのみを処理
             if not filename.lower().endswith(('.jpg', '.jpeg', '.png')):
                 continue
                 

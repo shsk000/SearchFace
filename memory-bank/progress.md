@@ -17,3 +17,14 @@ Initialization
 
 ## Blockers
 [None currently identified]
+
+## Update (2025-05-28)
+Phase: Development
+Questions Processed: 1
+
+Completed:
+- ✓ src/image/collector.pyの独自処理をユーティリティ関数に置き換え
+
+In Progress:
+- → Development environment configuration
+- → Initial documentation

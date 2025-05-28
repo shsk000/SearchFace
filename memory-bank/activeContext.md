@@ -16,3 +16,7 @@ Current Task: Initial Setup
 
 ## Recent Updates
 - 2025-05-28: Project initialized
+
+## Session Update (2025-05-28)
+- Mode: Development
+- Task: コードリファクタリング - ユーティリティ関数の活用

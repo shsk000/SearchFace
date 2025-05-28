@@ -17,6 +17,8 @@ from .search import ImageSearcher
 from .download import ImageDownloader
 from .storage import ImageStorage
 from utils import log_utils
+from face.face_utils import get_face_encoding, detect_faces
+from utils.similarity import sigmoid_similarity
 
 # 環境変数の読み込み
 load_dotenv()
@@ -32,10 +34,8 @@ class ImageCollector:
         self.searcher = ImageSearcher()
         self.downloader = ImageDownloader()
         self.storage = ImageStorage()
-        
-        # 環境変数から閾値を読み込み（デフォルト値あり）
-        # Google画像検索結果は大体本人のため、環境変数ではなく独自でしきい値を指定する
-        self.similarity_threshold = float("0.5");
+
+        self.similarity_threshold = float("0.6");
         self.max_faces_threshold = int(os.getenv("MAX_FACES_THRESHOLD", "1"))
         logger.info(f"類似度閾値: {self.similarity_threshold}, 最大顔検出数: {self.max_faces_threshold}")
 
@@ -48,16 +48,11 @@ class ImageCollector:
         Returns:
             Optional[np.ndarray]: 顔エンコーディング
         """
-        try:
-            image = face_recognition.load_image_file(base_image_path)
-            encodings = face_recognition.face_encodings(image)
-            if not encodings:
-                logger.warning(f"基準画像から顔を検出できません: {base_image_path}")
-                return None
-            return encodings[0]
-        except Exception as e:
-            logger.error(f"基準画像の処理に失敗: {str(e)}")
-            return None
+        # face_utils.pyのget_face_encoding関数を使用
+        encoding = get_face_encoding(base_image_path)
+        if encoding is None:
+            logger.warning(f"基準画像から顔を検出できません: {base_image_path}")
+        return encoding
 
     def validate_image(self, image_data: bytes, base_encoding: np.ndarray) -> Tuple[bool, Optional[np.ndarray]]:
         """画像の検証
@@ -80,8 +75,8 @@ class ImageCollector:
             # 画像を配列に変換
             image_array = np.array(image)
             
-            # 顔の検出
-            face_locations = face_recognition.face_locations(image_array)
+            # face_utils.pyのdetect_faces関数を使用して顔検出とエンコーディング取得
+            face_encodings, face_locations = detect_faces(image_array)
             
             # 複数の顔が検出された場合は除外
             if len(face_locations) > self.max_faces_threshold:
@@ -94,11 +89,12 @@ class ImageCollector:
                 return False, None
             
             # 顔のエンコーディングを取得
-            face_encoding = face_recognition.face_encodings(image_array, face_locations)[0]
+            face_encoding = face_encodings[0]
             
             # 類似度の計算
             distance = face_recognition.face_distance([base_encoding], face_encoding)[0]
-            similarity = 1 - distance
+            # similarity.pyのexponential_similarity関数を使用
+            similarity = sigmoid_similarity(distance)
             
             logger.debug(f"距離={distance:.2f}, 類似度={similarity:.2f}, 閾値={self.similarity_threshold:.2f}")
             
