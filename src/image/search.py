@@ -43,7 +43,7 @@ class ImageSearcher:
         """
         try:
             # 検索クエリの最適化
-            optimized_query = f"{query} パッケージ"
+            optimized_query = f"{query} 女優"
             print(f"検索クエリ: {optimized_query}")
             
             # 画像検索の実行

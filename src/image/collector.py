@@ -12,6 +12,7 @@ from PIL import Image
 from io import BytesIO
 from pathlib import Path
 from dotenv import load_dotenv
+import logging
 
 from .search import ImageSearcher
 from .download import ImageDownloader
@@ -19,6 +20,9 @@ from .storage import ImageStorage
 
 # 環境変数の読み込み
 load_dotenv()
+
+# ロガーの設定
+logger = logging.getLogger(__name__)
 
 class ImageCollector:
     """画像収集クラス"""
@@ -30,8 +34,10 @@ class ImageCollector:
         self.storage = ImageStorage()
         
         # 環境変数から閾値を読み込み（デフォルト値あり）
-        self.similarity_threshold = float(os.getenv("SIMILARITY_THRESHOLD", "0.55"))
+        # Google画像検索結果は大体本人のため、環境変数ではなく独自でしきい値を指定する
+        self.similarity_threshold = float("0.5");
         self.max_faces_threshold = int(os.getenv("MAX_FACES_THRESHOLD", "1"))
+        logger.info(f"類似度閾値: {self.similarity_threshold}, 最大顔検出数: {self.max_faces_threshold}")
 
     def get_base_encoding(self, base_image_path: str) -> Optional[np.ndarray]:
         """基準画像の顔エンコーディングを取得
@@ -79,12 +85,12 @@ class ImageCollector:
             
             # 複数の顔が検出された場合は除外
             if len(face_locations) > self.max_faces_threshold:
-                print(f"警告: 複数の顔が検出されました（{len(face_locations)}個）")
+                logger.warning(f"複数の顔が検出されました（{len(face_locations)}個）")
                 return False, None
             
             # 顔が検出されない場合は除外
             if not face_locations:
-                print("警告: 顔が検出されませんでした")
+                logger.warning("顔が検出されませんでした")
                 return False, None
             
             # 顔のエンコーディングを取得
@@ -94,16 +100,18 @@ class ImageCollector:
             distance = face_recognition.face_distance([base_encoding], face_encoding)[0]
             similarity = 1 - distance
             
-            # 類似度が閾値を超える場合のみ有効
+            logger.debug(f"距離={distance:.2f}, 類似度={similarity:.2f}, 閾値={self.similarity_threshold:.2f}")
+            
+            # 類似度の判定
             if similarity >= self.similarity_threshold:
-                print(f"類似度: {similarity:.2f}")
+                logger.info(f"類似度: {similarity:.2f}（閾値: {self.similarity_threshold:.2f}）")
                 return True, face_encoding
             
-            print(f"警告: 類似度が低すぎます（{similarity:.2f}）")
+            logger.warning(f"類似度が閾値を下回っています（{similarity:.2f} < {self.similarity_threshold:.2f}）")
             return False, None
             
         except Exception as e:
-            print(f"エラー: 画像の検証に失敗: {str(e)}")
+            logger.error(f"画像の検証に失敗: {str(e)}")
             return False, None
 
     def collect_images_for_person(self, person_name: str, base_image_path: str, target_count: int = 3) -> int:
