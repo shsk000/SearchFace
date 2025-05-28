@@ -76,3 +76,27 @@ def get_face_encoding(image_path: str) -> Optional[np.ndarray]:
         logger.warning(f"複数の顔が検出されました。最初の顔を使用します: {image_path}")
     
     return face_encodings[0]
+
+def get_face_encoding_from_array(image_array: np.ndarray) -> Optional[np.ndarray]:
+    """
+    画像配列から顔のエンコーディングを取得する
+    
+    Args:
+        image_array (np.ndarray): 画像データの配列
+        
+    Returns:
+        Optional[np.ndarray]: 顔のエンコーディング。失敗時はNone
+    """
+    # 顔を検出
+    face_encodings, _ = detect_faces(image_array)
+    
+    # 顔が検出されなかった場合
+    if not face_encodings:
+        logger.warning("顔が検出されませんでした")
+        return None
+    
+    # 複数の顔が検出された場合
+    if len(face_encodings) > 1:
+        logger.warning("複数の顔が検出されました。最初の顔を使用します")
+    
+    return face_encodings[0]
