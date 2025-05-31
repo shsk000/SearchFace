@@ -10,9 +10,13 @@ from PIL import Image
 from io import BytesIO
 import time
 import urllib3
+from utils import log_utils
 
 # SSL警告を無効化
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+# ロガーの設定
+logger = log_utils.get_logger(__name__)
 
 class ImageDownloader:
     """画像ダウンロードクラス"""
@@ -40,7 +44,7 @@ class ImageDownloader:
             try:
                 # URLがTikTokの場合はスキップ
                 if "tiktok.com" in url:
-                    print(f"警告: TikTok URLはスキップします: {url}")
+                    logger.warning(f"TikTok URLはスキップします: {url}")
                     return None
                 
                 # リクエストの実行
@@ -55,27 +59,27 @@ class ImageDownloader:
                 # Content-Typeの確認
                 content_type = response.headers.get('content-type', '').lower()
                 if not content_type.startswith('image/'):
-                    print(f"警告: 画像以外のコンテンツタイプです: {content_type}")
+                    logger.warning(f"画像以外のコンテンツタイプです: {content_type}")
                     return None
                 
                 # 画像データの検証
                 try:
                     Image.open(BytesIO(response.content))
                 except Exception as e:
-                    print(f"警告: 無効な画像データです: {str(e)}")
+                    logger.warning(f"無効な画像データです: {str(e)}")
                     return None
                 
                 return response.content
                 
             except requests.exceptions.RequestException as e:
                 if attempt < max_retries - 1:
-                    print(f"警告: リトライ中... ({attempt + 1}/{max_retries}): {str(e)}")
+                    logger.warning(f"リトライ中... ({attempt + 1}/{max_retries}): {str(e)}")
                     time.sleep(1)  # リトライ前に1秒待機
                     continue
-                print(f"エラー: 画像のダウンロードに失敗: {str(e)}")
+                logger.error(f"画像のダウンロードに失敗: {str(e)}")
                 return None
             except Exception as e:
-                print(f"エラー: 予期せぬエラーが発生: {str(e)}")
+                logger.error(f"予期せぬエラーが発生: {str(e)}")
                 return None
         
-        return None 
+        return None

@@ -1,0 +1,7 @@
+custom_instructions:
+  - name: track-progress
+    description: >
+      作業内容が完了したとき、progress.mdに記録してください。
+    trigger: 完了 / 解決 / コミット
+    actions:
+      - memory-bank に進捗を記録

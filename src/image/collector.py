@@ -16,9 +16,15 @@ from dotenv import load_dotenv
 from .search import ImageSearcher
 from .download import ImageDownloader
 from .storage import ImageStorage
+from utils import log_utils
+from face.face_utils import get_face_encoding, detect_faces
+from utils.similarity import sigmoid_similarity
 
 # 環境変数の読み込み
 load_dotenv()
+
+# ロガーの設定
+logger = log_utils.get_logger(__name__)
 
 class ImageCollector:
     """画像収集クラス"""
@@ -28,10 +34,10 @@ class ImageCollector:
         self.searcher = ImageSearcher()
         self.downloader = ImageDownloader()
         self.storage = ImageStorage()
-        
-        # 環境変数から閾値を読み込み（デフォルト値あり）
-        self.similarity_threshold = float(os.getenv("SIMILARITY_THRESHOLD", "0.55"))
+
+        self.similarity_threshold = float("0.55");
         self.max_faces_threshold = int(os.getenv("MAX_FACES_THRESHOLD", "1"))
+        logger.info(f"類似度閾値: {self.similarity_threshold}, 最大顔検出数: {self.max_faces_threshold}")
 
     def get_base_encoding(self, base_image_path: str) -> Optional[np.ndarray]:
         """基準画像の顔エンコーディングを取得
@@ -42,16 +48,11 @@ class ImageCollector:
         Returns:
             Optional[np.ndarray]: 顔エンコーディング
         """
-        try:
-            image = face_recognition.load_image_file(base_image_path)
-            encodings = face_recognition.face_encodings(image)
-            if not encodings:
-                print(f"警告: 基準画像から顔を検出できません: {base_image_path}")
-                return None
-            return encodings[0]
-        except Exception as e:
-            print(f"エラー: 基準画像の処理に失敗: {str(e)}")
-            return None
+        # face_utils.pyのget_face_encoding関数を使用
+        encoding = get_face_encoding(base_image_path)
+        if encoding is None:
+            logger.warning(f"基準画像から顔を検出できません: {base_image_path}")
+        return encoding
 
     def validate_image(self, image_data: bytes, base_encoding: np.ndarray) -> Tuple[bool, Optional[np.ndarray]]:
         """画像の検証
@@ -74,36 +75,39 @@ class ImageCollector:
             # 画像を配列に変換
             image_array = np.array(image)
             
-            # 顔の検出
-            face_locations = face_recognition.face_locations(image_array)
+            # face_utils.pyのdetect_faces関数を使用して顔検出とエンコーディング取得
+            face_encodings, face_locations = detect_faces(image_array)
             
             # 複数の顔が検出された場合は除外
             if len(face_locations) > self.max_faces_threshold:
-                print(f"警告: 複数の顔が検出されました（{len(face_locations)}個）")
+                logger.warning(f"複数の顔が検出されました（{len(face_locations)}個）")
                 return False, None
             
             # 顔が検出されない場合は除外
             if not face_locations:
-                print("警告: 顔が検出されませんでした")
+                logger.warning("顔が検出されませんでした")
                 return False, None
             
             # 顔のエンコーディングを取得
-            face_encoding = face_recognition.face_encodings(image_array, face_locations)[0]
+            face_encoding = face_encodings[0]
             
             # 類似度の計算
             distance = face_recognition.face_distance([base_encoding], face_encoding)[0]
-            similarity = 1 - distance
+            # similarity.pyのexponential_similarity関数を使用
+            similarity = sigmoid_similarity(distance)
             
-            # 類似度が閾値を超える場合のみ有効
+            logger.debug(f"距離={distance:.2f}, 類似度={similarity:.2f}, 閾値={self.similarity_threshold:.2f}")
+            
+            # 類似度の判定
             if similarity >= self.similarity_threshold:
-                print(f"類似度: {similarity:.2f}")
+                logger.info(f"類似度: {similarity:.2f}（閾値: {self.similarity_threshold:.2f}）")
                 return True, face_encoding
             
-            print(f"警告: 類似度が低すぎます（{similarity:.2f}）")
+            logger.warning(f"類似度が閾値を下回っています（{similarity:.2f} < {self.similarity_threshold:.2f}）")
             return False, None
             
         except Exception as e:
-            print(f"エラー: 画像の検証に失敗: {str(e)}")
+            logger.error(f"画像の検証に失敗: {str(e)}")
             return False, None
 
     def collect_images_for_person(self, person_name: str, base_image_path: str, target_count: int = 3) -> int:
@@ -149,12 +153,12 @@ class ImageCollector:
                     validation_result = "invalid"
             except Exception as e:
                 validation_result = "error"
-                print(f"エラー: 画像の検証に失敗: {str(e)}")
+                logger.error(f"画像の検証に失敗: {str(e)}")
             
             # すべての画像を保存
             self.storage.save_image(image_data, person_name, download_count, validation_result)
         
-        print(f"\n{person_name}の結果:")
-        print(f"- ダウンロードした画像数: {download_count}")
-        print(f"- 有効な画像数: {collected_count}")
-        return collected_count 
+        logger.info(f"\n{person_name}の結果:")
+        logger.info(f"- ダウンロードした画像数: {download_count}")
+        logger.info(f"- 有効な画像数: {collected_count}")
+        return collected_count

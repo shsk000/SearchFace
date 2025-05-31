@@ -1,5 +1,9 @@
 import sqlite3
 from typing import Dict, Any, List, Optional
+from utils import log_utils
+
+# ロガーの設定
+logger = log_utils.get_logger(__name__)
 
 def create_connection(db_file: str) -> sqlite3.Connection:
     """
@@ -62,14 +66,14 @@ def get_face_by_index_position(conn: sqlite3.Connection, index_position: int) ->
     Returns:
         Optional[Dict[str, Any]]: 顔データ。見つからない場合はNone
     """
-    print(f"インデックス位置で検索: {index_position}")
+    logger.debug(f"インデックス位置で検索: {index_position}")
     cursor = conn.cursor()
     cursor.execute('SELECT * FROM faces WHERE index_position = ?', (index_position,))
     row = cursor.fetchone()
     if row:
-        print(f"データが見つかりました: {dict(row)}")
+        logger.debug(f"データが見つかりました: {dict(row)}")
     else:
-        print("データが見つかりませんでした")
+        logger.debug("データが見つかりませんでした")
     return dict(row) if row else None
 
 def insert_face(conn: sqlite3.Connection, name: str, image_path: str, index_position: int, metadata: str = None) -> int:
@@ -86,7 +90,7 @@ def insert_face(conn: sqlite3.Connection, name: str, image_path: str, index_posi
     Returns:
         int: 挿入された顔データのID
     """
-    print(f"顔データを挿入: 名前={name}, インデックス位置={index_position}")
+    logger.debug(f"顔データを挿入: 名前={name}, インデックス位置={index_position}")
     cursor = conn.cursor()
     cursor.execute('''
         INSERT INTO faces (name, image_path, index_position, metadata)
@@ -115,4 +119,4 @@ def get_all_faces(conn: sqlite3.Connection) -> List[Dict[str, Any]]:
         'index_position': row[3],
         'created_at': row[4],
         'metadata': row[5]
-    } for row in rows] 
+    } for row in rows]
