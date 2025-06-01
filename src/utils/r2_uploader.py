@@ -42,6 +42,11 @@ load_dotenv()
 class R2Uploader:
     def __init__(self):
         """R2Uploaderの初期化"""
+        logger.debug(f"R2_BUCKET_NAME: {os.getenv('R2_BUCKET_NAME')}")
+        logger.debug(f"R2_ENDPOINT_URL: {os.getenv('R2_ENDPOINT_URL')}")
+        logger.debug(f"R2_ACCESS_KEY_ID: {os.getenv('R2_ACCESS_KEY_ID')}")
+        logger.debug(f"R2_SECRET_ACCESS_KEY: {os.getenv('R2_SECRET_ACCESS_KEY')}")
+        
         self.s3 = boto3.client(
             's3',
             endpoint_url=os.getenv('R2_ENDPOINT_URL'),
@@ -88,6 +93,9 @@ class R2Uploader:
         """
         try:
             logger.info(f"ファイルをダウンロード中: {object_name} -> {file_path}")
+            logger.debug(f"バケット名: {self.bucket_name}")
+            logger.debug(f"オブジェクト名: {object_name}")
+            logger.debug(f"ファイルパス: {file_path}")
             self.s3.download_file(self.bucket_name, object_name, file_path)
             logger.info(f"ダウンロード成功: {file_path}")
             return True

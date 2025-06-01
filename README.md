@@ -29,4 +29,8 @@ docker build -t searchface:latest .
 
 # docker run
 
-docker run -d -p 8000:8000 --name searchface searchface:latest
+docker run -p 8000:8000 --name searchface searchface:latest
+
+# install
+
+pip install --use-pep517 -r requirements.txt
