@@ -1,0 +1,82 @@
+# データベース設定
+
+## データベース概要
+- データベースファイル: data/face_database.db
+- インデックスファイル: data/face.index
+- ベクトル次元: 128次元（face_recognitionのエンコーディング次元）
+
+## テーブル構造
+### persons（人物情報テーブル）
+```sql
+CREATE TABLE persons (
+    person_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    metadata TEXT
+);
+```
+
+### face_images（顔画像情報テーブル）
+```sql
+CREATE TABLE face_images (
+    image_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    person_id INTEGER NOT NULL,
+    image_path TEXT NOT NULL,
+    image_hash TEXT NOT NULL UNIQUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    metadata TEXT,
+    FOREIGN KEY (person_id) REFERENCES persons(person_id) ON DELETE CASCADE
+);
+```
+
+### face_indexes（FAISSインデックス情報テーブル）
+```sql
+CREATE TABLE face_indexes (
+    index_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    image_id INTEGER NOT NULL,
+    index_position INTEGER NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (image_id) REFERENCES face_images(image_id) ON DELETE CASCADE,
+    UNIQUE(image_id, index_position)
+);
+```
+
+## インデックス
+- persons.name: 人物名での検索用
+- face_images.person_id: 人物IDでの検索用
+- face_indexes.image_id: 画像IDでの検索用
+- face_indexes.index_position: インデックス位置での検索用
+- face_images.image_hash: UNIQUE制約（重複チェック用）
+
+## データ管理ルール
+- 1人につき複数枚の画像を登録可能
+- 同一画像の重複登録は防止（image_hashによる制約）
+- 画像削除時は関連するインデックスも自動的に削除（CASCADE制約）
+- メタデータはJSON形式で保存
+
+## インデックス管理
+### FAISSインデックス
+- インデックスタイプ: IndexFlatL2（L2距離による線形探索）
+- ベクトル次元: 128次元
+- インデックスファイル: data/face.index
+
+### インデックス再構築
+- インデックスファイルが存在しない場合
+- インデックスが空の場合
+- データベースの整合性が崩れた場合
+
+### インデックス更新
+- 新規画像追加時に自動更新
+- トランザクション管理による整合性確保
+- インデックス位置とデータベースの同期維持
+
+## エラーハンドリング
+- トランザクション管理による原子性の確保
+- 重複画像の検出と適切な処理
+- インデックス再構築時のエラー処理
+- ロールバック処理の確実な実行
+
+## バックアップと復元
+- データベースファイルの定期的なバックアップ
+- インデックスファイルのバックアップ
+- 整合性を保った復元手順の整備 
