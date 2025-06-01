@@ -30,7 +30,7 @@ APIエンドポイント：
 import argparse
 from api.main import start as start_api
 from utils import log_utils
-from utils.r2_uploader import R2Uploader
+from utils.r2_uploader import download_database_files
 
 # ロギングの初期化
 log_utils.setup_logging()
@@ -47,7 +47,7 @@ def main():
 
     if args.sync_db:
         logger.info("データベースを同期します")
-        R2Uploader().download_database_files()
+        download_database_files()
     
     logger.info(f"顔画像の類似検索APIを起動します（{args.host}:{args.port}）")
     
