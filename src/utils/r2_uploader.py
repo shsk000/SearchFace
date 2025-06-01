@@ -29,22 +29,12 @@ R2_BUCKET_NAME=your_bucket_name
 import os
 import boto3
 from botocore.config import Config
-from dotenv import load_dotenv
 import logging
 
 # ロギングの設定
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-# 環境変数の読み込み
-logger.debug("環境変数ファイルの読み込みを開始")
-logger.debug(f"現在の作業ディレクトリ: {os.getcwd()}")
-logger.debug(f".envファイルの存在確認: {os.path.exists('/etc/secrets/.env')}")
-load_dotenv("/etc/secrets/.env")
-logger.debug(f"R2_BUCKET_NAME: {os.getenv('R2_BUCKET_NAME')}")
-logger.debug(f"R2_ENDPOINT_URL: {os.getenv('R2_ENDPOINT_URL')}")
-logger.debug(f"R2_ACCESS_KEY_ID: {os.getenv('R2_ACCESS_KEY_ID')}")
-logger.debug(f"R2_SECRET_ACCESS_KEY: {os.getenv('R2_SECRET_ACCESS_KEY')}")
 
 class R2Uploader:
     def __init__(self):
