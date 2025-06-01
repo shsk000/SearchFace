@@ -16,6 +16,8 @@ COPY src/ ./src/
 # face_recognition_models==0.3.0
 RUN pip install --no-cache-dir -r requirements.txt
 
+RUN echo "R2_BUCKET_NAME: ${R2_BUCKET_NAME}"
+
 # データの事前ダウンロード
 RUN python src/utils/r2_uploader.py --action download
 
