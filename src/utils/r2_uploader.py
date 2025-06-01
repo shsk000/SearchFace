@@ -29,11 +29,15 @@ R2_BUCKET_NAME=your_bucket_name
 import os
 import boto3
 from botocore.config import Config
+from dotenv import load_dotenv
 import logging
 
 # ロギングの設定
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# 環境変数の読み込み
+load_dotenv("/etc/secrets/.env")
 
 class R2Uploader:
     def __init__(self):
