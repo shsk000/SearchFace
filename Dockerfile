@@ -18,8 +18,6 @@ WORKDIR /app
 # 必要なファイルをコピー
 COPY requirements.txt .
 COPY src/ ./src/
-COPY data/face_database.db ./data/
-COPY data/face.index ./data/
 
 # Pythonパッケージをインストール
 RUN pip install --no-cache-dir -r requirements.txt
@@ -29,6 +27,9 @@ ENV PYTHONPATH=/app
 
 # ポートを公開
 EXPOSE 8000
+
+# データ群をダウンロードする
+RUN python src/utils/r2_uploader.py --action downloa
 
 # アプリケーションを起動
 CMD ["python", "src/api/main.py"] 
