@@ -30,9 +30,10 @@ APIエンドポイント：
 import argparse
 from api.main import start as start_api
 from utils import log_utils
+import logging;
 
 # ロギングの初期化
-log_utils.setup_logging()
+log_utils.setup_logging(level=logging.DEBUG)
 logger = log_utils.get_logger(__name__)
 
 def main():
