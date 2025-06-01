@@ -33,7 +33,7 @@ from dotenv import load_dotenv
 import logging
 
 # ロギングの設定
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 # 環境変数の読み込み
