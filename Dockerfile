@@ -23,4 +23,4 @@ ENV PYTHONPATH=/app
 EXPOSE 8000
 
 # アプリケーション起動
-CMD ["python", "src/run_api.py --sync-db"]
+CMD ["python", "src/run_api.py", "--sync-db"]
