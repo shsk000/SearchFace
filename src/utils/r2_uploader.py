@@ -30,10 +30,13 @@ import os
 import boto3
 from botocore.config import Config
 import logging
+import dotenv
 
 # ロギングの設定
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
+
+dotenv.load_dotenv("/etc/secrets/.env")
 
 class R2Uploader:
     def __init__(self):
