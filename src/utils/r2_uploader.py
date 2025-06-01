@@ -35,7 +35,6 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-
 class R2Uploader:
     def __init__(self):
         """R2Uploaderの初期化"""
