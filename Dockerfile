@@ -16,11 +16,6 @@ COPY src/ ./src/
 # face_recognition_models==0.3.0
 RUN pip install --no-cache-dir -r requirements.txt
 
-RUN echo "R2_BUCKET_NAME: ${R2_BUCKET_NAME}"
-
-# データの事前ダウンロード
-RUN python src/utils/r2_uploader.py --action download
-
 # 環境変数の設定（任意）
 ENV PYTHONPATH=/app
 
@@ -28,4 +23,4 @@ ENV PYTHONPATH=/app
 EXPOSE 8000
 
 # アプリケーション起動
-CMD ["python", "src/run_api.py"]
+CMD ["python", "src/run_api.py --sync-db"]
