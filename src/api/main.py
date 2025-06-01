@@ -18,6 +18,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ルートエンドポイント
+@app.get("/")
+async def root():
+    """ヘルスチェック用のルートエンドポイント"""
+    return {"status": "ok", "message": "SearchFace API is running"}
+
 # ルーティングのインポート
 from api.routes import search
 
