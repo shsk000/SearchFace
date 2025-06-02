@@ -4,7 +4,7 @@
 SearchFace APIは、顔画像の類似検索を提供するRESTful APIです。FastAPIフレームワークを使用して実装されています。
 
 ## 基本情報
-- ベースURL: `http://localhost:8000`
+- ベースURL: `http://localhost:10000`
 - APIバージョン: 1.0.0
 - 対応形式: JSON
 

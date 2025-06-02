@@ -20,7 +20,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 ENV PYTHONPATH=/app
 
 # ポートを公開（FastAPIやUvicorn用）
-EXPOSE 8000
+EXPOSE 10000
 
 # アプリケーション起動
 CMD ["python", "src/run_api.py", "--sync-db", "true"]
