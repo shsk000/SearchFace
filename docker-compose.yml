@@ -12,6 +12,10 @@ services:
       - ./data:/app/data
       - ./src:/app/src
       - ./.env:/app/.env
+    environment:
+      - DEBUG=${DEBUG:-false}  # デフォルトはfalse
+      - API_HOST=0.0.0.0
+      - API_PORT=10000
     command: python src/run_api.py
     networks:
       - searchface-network

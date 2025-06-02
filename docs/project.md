@@ -21,7 +21,14 @@ SearchFace/
 │   ├── face/           # 顔認識関連
 │   ├── image/          # 画像処理関連
 │   ├── utils/          # 共通ユーティリティ
-│   └── api/            # API実装
+│   ├── api/            # API実装
+│   │   ├── routes/     # ルーティング定義
+│   │   └── models/     # リクエスト/レスポンスモデル
+│   ├── core/           # コア機能
+│   │   ├── errors.py   # エラーコード定義
+│   │   ├── exceptions.py # カスタム例外
+│   │   └── middleware.py # ミドルウェア
+│   └── run_api.py      # FastAPIアプリケーション定義とサーバー起動（uvicorn、ホットリロード設定）
 ├── frontend/           # フロントエンド実装
 │   ├── app/           # Next.js App Router
 │   ├── components/    # Reactコンポーネント

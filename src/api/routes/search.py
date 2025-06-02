@@ -6,7 +6,6 @@ import numpy as np
 from PIL import Image
 from src.core.errors import ErrorCode
 from src.core.exceptions import ImageValidationException, ServerException
-from src.services.face_search import FaceSearchService
 import logging
 
 from database.face_database import FaceDatabase

@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import uvicorn
+from src.api.routes import search
+from src.core.middleware import error_handler_middleware
 
 # アプリケーションの作成
 app = FastAPI(
@@ -18,14 +19,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# エラーハンドリングミドルウェアの追加
+app.middleware("http")(error_handler_middleware)
+
 # ルートエンドポイント
 @app.get("/")
 async def root():
     """ヘルスチェック用のルートエンドポイント"""
     return {"status": "ok", "message": "SearchFace API is running"}
-
-# ルーティングのインポート
-from api.routes import search
 
 # ルーティングの登録
 app.include_router(search.router)

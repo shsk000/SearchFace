@@ -28,19 +28,44 @@ APIエンドポイント：
 """
 
 import argparse
-from api.main import start as start_api
+import os
+import uvicorn
 from utils import log_utils
 from utils.r2_uploader import download_database_files
+from src.api.main import app
 
 # ロギングの初期化
 log_utils.setup_logging()
 logger = log_utils.get_logger(__name__)
 
+def start_server(host: str, port: int, debug: bool = False):
+    """サーバーを起動する
+    
+    Args:
+        host (str): ホストアドレス
+        port (int): ポート番号
+        debug (bool): デバッグモード（ホットリロード）の有効/無効
+    """
+    logger.info(f"顔画像の類似検索APIを起動します（{host}:{port}）")
+    
+    # 開発環境の場合のみホットリロードを有効化
+    reload = debug
+    reload_dirs = ["src"] if debug else None
+    
+    uvicorn.run(
+        "src.api.main:app",
+        host=host,
+        port=port,
+        reload=reload,
+        reload_dirs=reload_dirs,
+        log_level="info"
+    )
+
 def main():
     """メイン関数"""
     parser = argparse.ArgumentParser(description="顔画像の類似検索API")
     parser.add_argument("--host", type=str, default="0.0.0.0", help="ホストアドレス（デフォルト: 0.0.0.0）")
-    parser.add_argument("--port", type=int, default=10000, help="ポート番号（デフォルト: 10000")
+    parser.add_argument("--port", type=int, default=10000, help="ポート番号（デフォルト: 10000）")
     parser.add_argument("--sync-db", type=bool, default=False, help="データベースを同期するかどうか（デフォルト: False）")
     
     args = parser.parse_args()
@@ -49,10 +74,11 @@ def main():
         logger.info("データベースを同期します")
         download_database_files()
     
-    logger.info(f"顔画像の類似検索APIを起動します（{args.host}:{args.port}）")
+    # 環境変数からデバッグモードを取得
+    debug = os.getenv("DEBUG", "false").lower() == "true"
     
-    # APIの起動
-    start_api(host=args.host, port=args.port)
+    # サーバーを起動
+    start_server(args.host, args.port, debug)
 
 if __name__ == "__main__":
     main()
