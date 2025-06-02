@@ -11,13 +11,13 @@ from typing import Optional, Any
 # グローバル変数
 _is_initialized = False
 
-def setup_logging(level: int = logging.INFO, 
+def setup_logging(level: int = logging.DEBUG, 
                  format_str: str = '%(asctime)s - %(levelname)s - %(name)s - %(message)s',
                  log_file: Optional[str] = None) -> None:
     """ロギングシステムの初期化
 
     Args:
-        level: ログレベル（デフォルト: INFO）
+        level: ログレベル（デフォルト: DEBUG）
         format_str: ログフォーマット
         log_file: ログファイルパス（指定しない場合は標準出力のみ）
     """

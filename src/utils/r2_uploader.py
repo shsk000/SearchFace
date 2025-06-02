@@ -33,7 +33,6 @@ import logging
 import dotenv
 
 # ロギングの設定
-logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 dotenv.load_dotenv("/etc/secrets/.env")
