@@ -1,10 +1,13 @@
 import time
-from fastapi import APIRouter, UploadFile, File, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, UploadFile, File
 from typing import List, Dict, Any
 import io
 import numpy as np
 from PIL import Image
+from src.core.errors import ErrorCode
+from src.core.exceptions import ImageValidationException, ServerException
+from src.services.face_search import FaceSearchService
+import logging
 
 from database.face_database import FaceDatabase
 from face import face_utils
@@ -12,25 +15,39 @@ from utils.similarity import calculate_similarity
 from api.models.response import SearchResult, SearchResponse
 
 router = APIRouter(prefix="/api", tags=["search"])
+logger = logging.getLogger(__name__)
 
 @router.post("/search", response_model=SearchResponse)
-async def search_faces(image: UploadFile = File(...)):
+async def search_face(
+    image: UploadFile = File(...),
+    top_k: int = 5
+):
     """
     アップロードされた画像から顔を検出し、類似する顔を検索する
     
     Args:
         image: アップロードされた画像ファイル（対応形式: JPEG, PNG, BMP）
+        top_k: 返却する結果の数（デフォルト: 5）
         
     Returns:
         SearchResponse: 検索結果と処理時間を含むレスポンス
         
     Raises:
-        HTTPException: 画像の読み込みや顔の検出に失敗した場合
+        ImageValidationException: 画像の検証に失敗した場合
+        ServerException: サーバーエラーが発生した場合
     """
     start_time = time.time()
     
-    # 画像の読み込みと検証
+    # 画像の検証
+    if not image.content_type.startswith('image/'):
+        raise ImageValidationException(ErrorCode.INVALID_IMAGE_FORMAT)
+
+    # 画像サイズの検証（5MB以下）
+    if image.size > 5 * 1024 * 1024:  # 5MB
+        raise ImageValidationException(ErrorCode.IMAGE_TOO_LARGE)
+    
     try:
+        # 画像の読み込みと検証
         contents = await image.read()
         img = Image.open(io.BytesIO(contents))
         # RGBA画像をRGBに変換
@@ -38,17 +55,21 @@ async def search_faces(image: UploadFile = File(...)):
             img = img.convert('RGB')
         img_array = np.array(img)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"無効な画像ファイル: {str(e)}")
+        logger.error(f"画像の読み込みに失敗: {str(e)}")
+        raise ImageValidationException(ErrorCode.IMAGE_CORRUPTED)
     
     # 顔の検出
     face_encoding = face_utils.get_face_encoding_from_array(img_array)
     if face_encoding is None:
-        raise HTTPException(status_code=400, detail="画像から顔を検出できませんでした")
+        raise ImageValidationException(ErrorCode.NO_FACE_DETECTED)
     
     # 類似顔の検索
     db = FaceDatabase()
     try:
-        results = db.search_similar_faces(face_encoding, top_k=3)
+        results = db.search_similar_faces(face_encoding, top_k=top_k)
+        
+        if not results:
+            raise ImageValidationException(ErrorCode.NO_FACE_DETECTED)
         
         # 結果の変換
         search_results = []
@@ -72,5 +93,10 @@ async def search_faces(image: UploadFile = File(...)):
             processing_time=processing_time
         )
     
+    except ImageValidationException:
+        raise
+    except Exception as e:
+        logger.error(f"検索処理でエラーが発生: {str(e)}")
+        raise ServerException(ErrorCode.INTERNAL_ERROR)
     finally:
         db.close()

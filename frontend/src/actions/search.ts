@@ -1,11 +1,13 @@
 'use server';
 
+import { ApiResponse } from '@/types/error'
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 if (!API_URL) {
   throw new Error('NEXT_PUBLIC_API_URL is not defined');
 }
 
-export async function searchImage(formData: FormData) {
+export async function searchImage(formData: FormData): Promise<ApiResponse<any>> {
   try {
     const image = formData.get('image') as File;
     if (!image) {
@@ -17,15 +19,26 @@ export async function searchImage(formData: FormData) {
       body: formData,
     });
 
+    const data = await response.json();
+
     if (!response.ok) {
-      throw new Error('検索に失敗しました');
+      console.error('API Error:', data);
+      return {
+        error: {
+          code: data.error?.code || 'E3001',
+          message: data.error?.message || 'サーバーでエラーが発生しました。'
+        }
+      };
     }
 
-    const data = await response.json();
-    console.log('検索結果:', data);
     return data;
   } catch (error) {
-    console.error('エラー:', error);
-    throw error;
+    console.error('Search error:', error);
+    return {
+      error: {
+        code: 'E3001',
+        message: 'サーバーでエラーが発生しました。'
+      }
+    };
   }
 } 
