@@ -4,7 +4,8 @@ import React, { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { ImageUploadZone } from "@/features/image-upload/ImageUploadZone";
 import { BackgroundImages } from "@/features/background/BackgroundImages";
-import { searchImage } from "@/actions/search";
+import { searchImage } from "@/actions/search/search";
+import { SearchResultError } from "@/actions/search/error";
 
 export default function Home() {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
