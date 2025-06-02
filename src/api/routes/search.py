@@ -23,20 +23,20 @@ async def search_face(
 ):
     """
     アップロードされた画像から顔を検出し、類似する顔を検索する
-    
+
     Args:
         image: アップロードされた画像ファイル（対応形式: JPEG, PNG, BMP）
         top_k: 返却する結果の数（デフォルト: 5）
-        
+
     Returns:
         SearchResponse: 検索結果と処理時間を含むレスポンス
-        
+
     Raises:
         ImageValidationException: 画像の検証に失敗した場合
         ServerException: サーバーエラーが発生した場合
     """
     start_time = time.time()
-    
+
     # 画像の検証
     if not image.content_type.startswith('image/'):
         raise ImageValidationException(ErrorCode.INVALID_IMAGE_FORMAT)
@@ -44,7 +44,7 @@ async def search_face(
     # 画像サイズの検証（5MB以下）
     if image.size > 5 * 1024 * 1024:  # 5MB
         raise ImageValidationException(ErrorCode.IMAGE_TOO_LARGE)
-    
+
     try:
         # 画像の読み込みと検証
         contents = await image.read()
@@ -56,26 +56,26 @@ async def search_face(
     except Exception as e:
         logger.error(f"画像の読み込みに失敗: {str(e)}")
         raise ImageValidationException(ErrorCode.IMAGE_CORRUPTED)
-    
+
     # 顔の検出
     face_encoding = face_utils.get_face_encoding_from_array(img_array)
     if face_encoding is None:
         raise ImageValidationException(ErrorCode.NO_FACE_DETECTED)
-    
+
     # 類似顔の検索
     db = FaceDatabase()
     try:
         results = db.search_similar_faces(face_encoding, top_k=top_k)
-        
+
         if not results:
             raise ImageValidationException(ErrorCode.NO_FACE_DETECTED)
-        
+
         # 結果の変換
         search_results = []
         for result in results:
             # 類似度の計算（exponentialがデフォルト）
             similarity = calculate_similarity(result, method='exponential')
-            
+
             search_results.append(
                 SearchResult(
                     name=result["name"],
@@ -84,14 +84,16 @@ async def search_face(
                     image_path=result["image_path"]
                 )
             )
-        
+
         processing_time = time.time() - start_time
-        
+
+        logger.debug(f"results: {search_results}")
+
         return SearchResponse(
             results=search_results,
             processing_time=processing_time
         )
-    
+
     except ImageValidationException:
         raise
     except Exception as e:
