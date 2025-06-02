@@ -55,14 +55,9 @@ export type SearchResultErrorType = "error" | "warning" | "info";
  * 検索結果に関するエラークラス
  */
 export class SearchResultError extends Error {
-  public readonly code: SearchResultErrorCode;
-  public readonly type: SearchResultErrorType;
-
-  constructor(code: SearchResultErrorCode, message: string, type: SearchResultErrorType = "error") {
+  constructor(message: SearchResultErrorCode) {
     super(message);
     this.name = "SearchResultError";
-    this.code = code;
-    this.type = type;
   }
 }
 
@@ -76,7 +71,5 @@ export const searchResultErrorSchema = z.object({
 export type SearchResultErrorResponseSchema = z.infer<typeof searchResultErrorSchema>;
 
 export const createSearchResultCustomError = (data: SearchResultErrorResponseSchema) => {
-  const type = getErrorType(data.error.code);
-  const displayMessage = getErrorMessage(data.error.code);
-  return new SearchResultError(data.error.code, displayMessage, type);
+  return new SearchResultError(data.error.code);
 };

@@ -1,5 +1,6 @@
 "use server";
 
+import { logger } from "@/lib/logger";
 import {
   SearchResultError,
   SearchResultErrorCode,
@@ -35,13 +36,10 @@ export async function searchImage(formData: FormData): Promise<SearchSuccessResp
     const validatedData = searchSuccessResponseSchema.parse(data);
     return validatedData;
   } catch (error) {
+    logger.error("Search Result error:", error);
     if (error instanceof SearchResultError) {
       throw error;
     }
-    console.error("Search error:", error);
-    throw new SearchResultError(
-      SearchResultErrorCode.UNKNOWN_ERROR,
-      "原因不明のエラーが発生しました",
-    );
+    throw new SearchResultError(SearchResultErrorCode.UNKNOWN_ERROR);
   }
 }

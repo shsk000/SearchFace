@@ -3,25 +3,49 @@
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import type React from "react";
+import { searchImage } from "@/actions/search/search";
+import { useState } from "react";
+import { logger } from "@/lib/logger";
+import { isErrorCode } from "@/actions/search/type";
+import { getErrorMessage } from "@/actions/search/error";
 
 interface ImageUploadZoneProps {
-  onImageSelect: (file: File) => void;
-  onSearch: () => void;
-  selectedImage: File | null;
-  previewUrl: string | null;
+  onSearchComplete?: () => void;
 }
 
-export function ImageUploadZone({ onImageSelect, onSearch, previewUrl }: ImageUploadZoneProps) {
+export function ImageUploadZone({ onSearchComplete }: ImageUploadZoneProps) {
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
+
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      onImageSelect(file);
+      setSelectedImage(file);
+      setPreviewUrl(URL.createObjectURL(file));
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSearch();
+    if (!selectedImage) return;
+
+    try {
+      setIsSearching(true);
+      const formData = new FormData();
+      formData.append("image", selectedImage);
+      await searchImage(formData);
+      onSearchComplete?.();
+    } catch (error) {
+      logger.error("Search Result error:", error);
+      if (error instanceof Error && isErrorCode(error.message)) {
+        const message = error.message;
+        const displayMessage = getErrorMessage(message);
+        logger.error("Search Result display message:", displayMessage);
+      }
+    } finally {
+      setIsSearching(false);
+    }
   };
 
   return (
@@ -55,8 +79,12 @@ export function ImageUploadZone({ onImageSelect, onSearch, previewUrl }: ImageUp
           </div>
         )}
       </div>
-      <Button type="submit" className="w-full bg-pink-600 hover:bg-pink-700">
-        検索する
+      <Button
+        type="submit"
+        className="w-full bg-pink-600 hover:bg-pink-700"
+        disabled={!selectedImage || isSearching}
+      >
+        {isSearching ? "検索中..." : "検索する"}
       </Button>
     </form>
   );
