@@ -1,11 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { ImageUploadZone } from "@/features/image-upload/ImageUploadZone";
-import { BackgroundImages } from "@/features/background/BackgroundImages";
 import { searchImage } from "@/actions/search/search";
-import { SearchResultError } from "@/actions/search/error";
+import { BackgroundImages } from "@/features/background/BackgroundImages";
+import { ImageUploadZone } from "@/features/image-upload/ImageUploadZone";
+import { useState } from "react";
 
 export default function Home() {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -21,11 +19,11 @@ export default function Home() {
     if (selectedImage) {
       try {
         const formData = new FormData();
-        formData.append('image', selectedImage);
+        formData.append("image", selectedImage);
         await searchImage(formData);
         setHasSearched(true);
       } catch (error) {
-        console.error('検索エラー:', error);
+        console.error("検索エラー:", error);
         // TODO: エラー表示のUI実装
       }
     }
@@ -40,9 +38,7 @@ export default function Home() {
           <br />
           妄想が、確信に変わる。
         </h1>
-        <p className="text-lg mb-6">
-          画像をアップするだけで、そっくりなAV女優が見つかる。
-        </p>
+        <p className="text-lg mb-6">画像をアップするだけで、そっくりなAV女優が見つかる。</p>
 
         <ImageUploadZone
           onImageSelect={handleImageSelect}
@@ -53,7 +49,7 @@ export default function Home() {
 
         {hasSearched && (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-8">
-            {[...Array(6)].map((_, i) => (
+            {/* {[...Array(6)].map((_, i) => (
               <Card key={i} className="bg-[#1f1f1f] border border-gray-700">
                 <CardContent className="p-4">
                   <div className="bg-gray-700 w-full h-40 mb-2 rounded-lg"></div>
@@ -61,7 +57,8 @@ export default function Home() {
                   <p className="text-xs text-gray-400">類似度: {98 - i}%</p>
                 </CardContent>
               </Card>
-            ))}
+            ))} */}
+            <p>検索結果</p>
           </div>
         )}
 

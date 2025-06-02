@@ -1,22 +1,27 @@
-'use server';
+"use server";
 
-import { createSearchResultCustomError, SearchResultError, SearchResultErrorCode, searchResultErrorSchema } from './error';
-import { searchSuccessResponseSchema, type SearchSuccessResponseSchema } from './type';
+import {
+  SearchResultError,
+  SearchResultErrorCode,
+  createSearchResultCustomError,
+  searchResultErrorSchema,
+} from "./error";
+import { type SearchSuccessResponseSchema, searchSuccessResponseSchema } from "./type";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 if (!API_URL) {
-  throw new Error('NEXT_PUBLIC_API_URL is not defined');
+  throw new Error("NEXT_PUBLIC_API_URL is not defined");
 }
 
 export async function searchImage(formData: FormData): Promise<SearchSuccessResponseSchema> {
   try {
-    const image = formData.get('image') as File;
+    const image = formData.get("image") as File;
     if (!image) {
-      throw new Error('画像が選択されていません');
+      throw new Error("画像が選択されていません");
     }
 
     const response = await fetch(`${API_URL}/api/search`, {
-      method: 'POST',
+      method: "POST",
       body: formData,
     });
 
@@ -33,7 +38,10 @@ export async function searchImage(formData: FormData): Promise<SearchSuccessResp
     if (error instanceof SearchResultError) {
       throw error;
     }
-    console.error('Search error:', error);
-    throw new SearchResultError(SearchResultErrorCode.UNKNOWN_ERROR, "原因不明のエラーが発生しました");
+    console.error("Search error:", error);
+    throw new SearchResultError(
+      SearchResultErrorCode.UNKNOWN_ERROR,
+      "原因不明のエラーが発生しました",
+    );
   }
 }

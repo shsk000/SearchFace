@@ -1,6 +1,4 @@
-'use client';
-
-import React from "react";
+"use client";
 
 const bgImages = [
   "https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/sone00682/sone00682ps.jpg?w=147&h=200&f=webp&t=margin",
@@ -37,8 +35,8 @@ const bgImages = [
 export function BackgroundImages() {
   return (
     <div className="fixed z-0 grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-8 w-full h-full pointer-events-none top-0 left-0 right-0 bottom-0 mx-auto">
-      {bgImages.map((url: string, idx: number) => (
-        <div key={idx} className="w-full h-full aspect-[1/1.361] relative">
+      {bgImages.map((url: string) => (
+        <div key={url} className="w-full h-full aspect-[1/1.361] relative">
           <img
             src={url}
             alt="bg"
@@ -53,4 +51,4 @@ export function BackgroundImages() {
       <div className="absolute inset-0 bg-black opacity-60" />
     </div>
   );
-} 
+}

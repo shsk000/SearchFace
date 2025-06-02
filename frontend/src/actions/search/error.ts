@@ -1,5 +1,5 @@
-import { z } from "zod"
-import { ErrorCode } from "./type"
+import { z } from "zod";
+import type { ErrorCode } from "./type";
 
 export function getErrorMessage(code: ErrorCode): string {
   const messages: Record<ErrorCode, string> = {
@@ -8,9 +8,9 @@ export function getErrorMessage(code: ErrorCode): string {
     INVALID_IMAGE: "無効な画像形式です",
     SERVER_ERROR: "サーバーエラーが発生しました",
     NETWORK_ERROR: "ネットワークエラーが発生しました",
-    UNKNOWN_ERROR: "予期せぬエラーが発生しました"
-  }
-  return messages[code]
+    UNKNOWN_ERROR: "予期せぬエラーが発生しました",
+  };
+  return messages[code];
 }
 
 // エラーコードに基づいてエラーの種類を判定する関数
@@ -19,13 +19,13 @@ export function getErrorType(code: ErrorCode): "error" | "warning" | "info" {
     case "NO_FACE_DETECTED":
     case "MULTIPLE_FACES":
     case "INVALID_IMAGE":
-      return "warning"
+      return "warning";
     case "SERVER_ERROR":
     case "NETWORK_ERROR":
     case "UNKNOWN_ERROR":
-      return "error"
+      return "error";
     default:
-      return "info"
+      return "info";
   }
 }
 
@@ -43,7 +43,7 @@ export enum SearchResultErrorCode {
   NETWORK_ERROR = "NETWORK_ERROR",
 
   // その他のエラー
-  UNKNOWN_ERROR = "UNKNOWN_ERROR"
+  UNKNOWN_ERROR = "UNKNOWN_ERROR",
 }
 
 /**
@@ -58,11 +58,7 @@ export class SearchResultError extends Error {
   public readonly code: SearchResultErrorCode;
   public readonly type: SearchResultErrorType;
 
-  constructor(
-    code: SearchResultErrorCode,
-    message: string,
-    type: SearchResultErrorType = "error",
-  ) {
+  constructor(code: SearchResultErrorCode, message: string, type: SearchResultErrorType = "error") {
     super(message);
     this.name = "SearchResultError";
     this.code = code;
@@ -75,12 +71,12 @@ export const searchResultErrorSchema = z.object({
     code: z.nativeEnum(SearchResultErrorCode),
     message: z.string(),
   }),
-})
+});
 
-export type SearchResultErrorResponseSchema = z.infer<typeof searchResultErrorSchema>
+export type SearchResultErrorResponseSchema = z.infer<typeof searchResultErrorSchema>;
 
 export const createSearchResultCustomError = (data: SearchResultErrorResponseSchema) => {
   const type = getErrorType(data.error.code);
   const displayMessage = getErrorMessage(data.error.code);
   return new SearchResultError(data.error.code, displayMessage, type);
-}
+};

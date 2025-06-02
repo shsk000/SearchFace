@@ -5,26 +5,26 @@ export type ErrorCode =
   | "INVALID_IMAGE"
   | "SERVER_ERROR"
   | "NETWORK_ERROR"
-  | "UNKNOWN_ERROR"
+  | "UNKNOWN_ERROR";
 
 // エラーレスポンスの型定義
 export interface ErrorResponse {
-  code: ErrorCode
-  message: string
+  code: ErrorCode;
+  message: string;
 }
 
-import { z } from "zod"
+import { z } from "zod";
 
 export const searchResultSchema = z.object({
   name: z.string(),
   similarity: z.number(),
   distance: z.number(),
   image_path: z.string(),
-})
+});
 
 export const searchSuccessResponseSchema = z.object({
   results: z.array(searchResultSchema),
-  processing_time: z.number()
-})
+  processing_time: z.number(),
+});
 
-export type SearchSuccessResponseSchema = z.infer<typeof searchSuccessResponseSchema>
+export type SearchSuccessResponseSchema = z.infer<typeof searchSuccessResponseSchema>;
