@@ -31,7 +31,7 @@ from api.routes import search
 app.include_router(search.router)
 
 # 起動用関数
-def start(host="0.0.0.0", port=8000):
+def start(host="0.0.0.0", port=10000):
     """アプリケーションを起動する
     
     Args:

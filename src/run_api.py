@@ -40,7 +40,7 @@ def main():
     """メイン関数"""
     parser = argparse.ArgumentParser(description="顔画像の類似検索API")
     parser.add_argument("--host", type=str, default="0.0.0.0", help="ホストアドレス（デフォルト: 0.0.0.0）")
-    parser.add_argument("--port", type=int, default=8000, help="ポート番号（デフォルト: 8000）")
+    parser.add_argument("--port", type=int, default=10000, help="ポート番号（デフォルト: 10000")
     parser.add_argument("--sync-db", type=bool, default=False, help="データベースを同期するかどうか（デフォルト: False）")
     
     args = parser.parse_args()
