@@ -8,6 +8,7 @@ import { useState } from "react";
 import { logger } from "@/lib/logger";
 import { isErrorCode } from "@/actions/search/type";
 import { getErrorMessage } from "@/actions/search/error";
+import { toast } from "sonner";
 
 interface ImageUploadZoneProps {
   onSearchComplete?: () => void;
@@ -41,7 +42,9 @@ export function ImageUploadZone({ onSearchComplete }: ImageUploadZoneProps) {
       if (error instanceof Error && isErrorCode(error.message)) {
         const message = error.message;
         const displayMessage = getErrorMessage(message);
-        logger.error("Search Result display message:", displayMessage);
+        toast.error(displayMessage, {
+          closeButton: true,
+        });
       }
     } finally {
       setIsSearching(false);
