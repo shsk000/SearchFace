@@ -43,12 +43,14 @@
 - ライブラリやフレームワークの挙動を作り出さないでください。公式な動作や一般的なベストプラクティスに従ってください。
 - APIのレスポンスや構造を勝手に作らないでください。仮の例である場合は、その旨を明記してください。
 
-# SearchFace プロジェクト設定
+# ルール一覧
 
-> 注意: プロジェクトの詳細な設定は [docs/project.md](./docs/project.md) を参照してください。
+> AIは行動規範に**必ず**従ってください。 [docs/principles.md](./docs/principles.md) を参照してください。
+> プロジェクトの詳細な設定は [docs/project.md](./docs/project.md) を参照してください。
 > Python開発に関する詳細な設定は [docs/python.md](./docs/python.md) を参照してください。
 > データベースに関する詳細な設定は [docs/db.md](./docs/db.md) を参照してください。
 > API仕様に関する詳細な設定は [docs/api.md](./docs/api.md) を参照してください。
 > 設計資料は [docs/design.md](./docs/design.md) を参照してください。
 > タスク管理は [docs/tasks.md](./docs/tasks.md) を参照してください。
+> フロントエンド開発に関する詳細な設定は [docs/frontend.md](./docs/frontend.md) を参照してください。
 
