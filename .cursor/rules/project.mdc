@@ -1,3 +1,10 @@
+---
+description: SearchFace プロジェクト設定
+globs: **/*
+alwaysApply: true
+priority: 1000
+---
+
 # SearchFace プロジェクト設定
 
 このルールを読んだら「SearchFaceプロジェクト設定を読みました！」と言ってください。

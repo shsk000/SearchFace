@@ -4,19 +4,20 @@ globs: **/*
 alwaysApply: true
 priority:1000
 ---
+
 このルールを読んだら「first.mdcを読みました！」と言ってください。
 
 # 最重要ルール
 
 > **行動規範の遵守は最優先事項です**
-> 1. ユーザーからの指示を受けたら、必ず最初に [../docs/principles.md](mdc:../docs/principles.md) を確認してください
+> 1. ユーザーからの指示を受けたら、必ず最初に [principles.mdc](mdc:principles.mdc) を確認してください
 > 2. タスク管理プロセスを必ず実行してください
 > 3. 実装を開始する前に、タスクファイルの作成と承認が必要です
 
 # 応答プロセス
 
 1. ルール確認
-   - [../docs/principles.md](mdc:../docs/principles.md) の内容を確認
+   - [principles.mdc](mdc:principles.mdc) の内容を確認
    - 確認完了を明示的に報告
 
 2. タスク管理
@@ -75,11 +76,11 @@ priority:1000
 
 # ルール一覧
 
-> AIは行動規範に**必ず**従ってください。 [../docs/principles.md](mdc:../docs/principles.md) を参照してください。
-> プロジェクトの詳細な設定は [../docs/project.md](mdc:../docs/project.md) を参照してください。
-> Python開発に関する詳細な設定は [../docs/python.md](mdc:../docs/python.md) を参照してください。
-> データベースに関する詳細な設定は [../docs/db.md](mdc:../docs/db.md) を参照してください。
-> API仕様に関する詳細な設定は [../docs/api.md](mdc:../docs/api.md) を参照してください。
-> 設計資料は [../docs/design.md](mdc:../docs/design.md) を参照してください。
-> タスク管理は [../docs/tasks.md](mdc:../docs/tasks.md) を参照してください。
-> フロントエンド開発に関する詳細な設定は [../docs/frontend.md](mdc:../docs/frontend.md) を参照してください。
+> AIは行動規範に**必ず**従ってください。 [principles.mdc](mdc:principles.mdc) を参照してください。
+> プロジェクトの詳細な設定は [project.mdc](mdc:project.mdc) を参照してください。
+> Python開発に関する詳細な設定は [python.mdc](mdc:python.mdc) を参照してください。
+> データベースに関する詳細な設定は [db.mdc](mdc:db.mdc) を参照してください。
+> API仕様に関する詳細な設定は [api.mdc](mdc:api.mdc) を参照してください。
+> 設計資料は [design.mdc](mdc:design.mdc) を参照してください。
+> タスク管理は [tasks.mdc](mdc:tasks.mdc) を参照してください。
+> フロントエンド開発に関する詳細な設定は [frontend.mdc](mdc:frontend.mdc) を参照してください。

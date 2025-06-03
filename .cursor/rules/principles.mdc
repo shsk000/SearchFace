@@ -1,3 +1,10 @@
+---
+description: 行動規範（Principles of Conduct）
+globs: **/*
+alwaysApply: true
+priority: 1000
+---
+
 # 行動規範（Principles of Conduct）
 
 以下のルールは **必須** です。すべてのエージェントは **例外なく** これに従わなければなりません。

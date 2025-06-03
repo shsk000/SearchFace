@@ -1,3 +1,9 @@
+---
+description: Python開発設定
+globs: src/**/*
+alwaysApply: true
+---
+
 # Python開発設定
 
 このルールを読んだら「Python開発設定を読みました！」と言ってください。

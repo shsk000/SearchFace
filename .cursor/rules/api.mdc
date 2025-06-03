@@ -1,3 +1,9 @@
+---
+description: SearchFace API仕様
+globs: src/**/*
+alwaysApply: true
+---
+
 # SearchFace API仕様
 
 このルールを読んだら「API仕様を読みました！」と言ってください。
