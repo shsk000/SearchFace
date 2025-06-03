@@ -58,6 +58,7 @@ async def search_face(
         raise ImageValidationException(ErrorCode.IMAGE_CORRUPTED)
 
     # 顔の検出
+    # 複数顔検出時はImageValidationException(ErrorCode.MULTIPLE_FACES)がraiseされる
     face_encoding = face_utils.get_face_encoding_from_array(img_array)
     if face_encoding is None:
         raise ImageValidationException(ErrorCode.NO_FACE_DETECTED)
