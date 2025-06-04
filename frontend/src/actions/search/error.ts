@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { ErrorCode } from "./type";
+import { type ErrorCode, errorCodeSchema } from "./type";
 
 export function getErrorMessage(code: ErrorCode): string {
   const messages: Record<ErrorCode, string> = {
@@ -30,23 +30,6 @@ export function getErrorType(code: ErrorCode): "error" | "warning" | "info" {
 }
 
 /**
- * アプリケーション固有のエラーコード
- */
-export enum SearchResultErrorCode {
-  // 画像関連のエラー
-  NO_FACE_DETECTED = "NO_FACE_DETECTED",
-  MULTIPLE_FACES = "MULTIPLE_FACES",
-  INVALID_IMAGE = "INVALID_IMAGE",
-
-  // サーバー関連のエラー
-  SERVER_ERROR = "SERVER_ERROR",
-  NETWORK_ERROR = "NETWORK_ERROR",
-
-  // その他のエラー
-  UNKNOWN_ERROR = "UNKNOWN_ERROR",
-}
-
-/**
  * エラーの種類
  */
 export type SearchResultErrorType = "error" | "warning" | "info";
@@ -55,7 +38,7 @@ export type SearchResultErrorType = "error" | "warning" | "info";
  * 検索結果に関するエラークラス
  */
 export class SearchResultError extends Error {
-  constructor(message: SearchResultErrorCode) {
+  constructor(message: ErrorCode) {
     super(message);
     this.name = "SearchResultError";
   }
@@ -63,7 +46,7 @@ export class SearchResultError extends Error {
 
 export const searchResultErrorSchema = z.object({
   error: z.object({
-    code: z.nativeEnum(SearchResultErrorCode),
+    code: errorCodeSchema,
     message: z.string(),
   }),
 });

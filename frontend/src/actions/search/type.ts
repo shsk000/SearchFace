@@ -14,8 +14,10 @@ export type ErrorCode = z.infer<typeof errorCodeSchema>;
 
 // エラーレスポンスの型定義
 export const errorResponseSchema = z.object({
-  code: errorCodeSchema,
-  message: z.string(),
+  error: z.object({
+    code: errorCodeSchema,
+    message: z.string(),
+  }),
 });
 
 export type ErrorResponse = z.infer<typeof errorResponseSchema>;
@@ -33,7 +35,8 @@ export const searchSuccessResponseSchema = z.object({
   processing_time: z.number(),
 });
 
-export type SearchSuccessResponseSchema = z.infer<typeof searchSuccessResponseSchema>;
+export type SearchResult = z.infer<typeof searchResultSchema>;
+export type SearchSuccessResponse = z.infer<typeof searchSuccessResponseSchema>;
 
 // 型ガード関数
 export const isErrorCode = (code: unknown): code is ErrorCode =>

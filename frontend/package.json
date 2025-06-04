@@ -8,7 +8,7 @@
     "start": "next start",
     "format": "biome format --write .",
     "lint": "biome lint .",
-    "check": "biome check --apply ."
+    "check": "biome check --write ."
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.2",

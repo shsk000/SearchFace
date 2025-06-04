@@ -1,11 +1,12 @@
 "use client";
 
-import { getErrorMessage } from "@/actions/search/error";
 import { searchImage } from "@/actions/search/search";
+import { SearchResultError, getErrorMessage } from "@/actions/search/error";
 import { isErrorCode } from "@/actions/search/type";
 import { Button } from "@/components/ui/button";
 import { logger } from "@/lib/logger";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import type React from "react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -18,6 +19,7 @@ export function ImageUploadZone({ onSearchComplete }: ImageUploadZoneProps) {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isSearching, setIsSearching] = useState(false);
+  const router = useRouter();
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -29,23 +31,40 @@ export function ImageUploadZone({ onSearchComplete }: ImageUploadZoneProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedImage) return;
+    if (!selectedImage || isSearching) return;
+
+    setIsSearching(true);
 
     try {
-      setIsSearching(true);
       const formData = new FormData();
       formData.append("image", selectedImage);
-      await searchImage(formData);
+
+      const result = await searchImage(formData);
+
+      logger.info("検索成功", { result });
+      toast.success("検索が完了しました！");
+
+      // 検索結果をセッションストレージに保存
+      const dataToStore = JSON.stringify(result);
+      sessionStorage.setItem("searchResults", dataToStore);
+
+      // 結果ページに遷移
+      router.push("/results");
+
       onSearchComplete?.();
     } catch (error) {
-      logger.error("Search Result error:", error);
+      logger.error("検索エラー", { error });
+
+      let errorMessage = "検索中にエラーが発生しました";
+
       if (error instanceof Error && isErrorCode(error.message)) {
-        const message = error.message;
-        const displayMessage = getErrorMessage(message);
-        toast.error(displayMessage, {
-          closeButton: true,
-        });
+        const errorCode = error.message;
+        errorMessage = getErrorMessage(errorCode);
       }
+
+      toast.error(errorMessage, {
+        closeButton: true,
+      });
     } finally {
       setIsSearching(false);
     }
@@ -74,7 +93,7 @@ export function ImageUploadZone({ onSearchComplete }: ImageUploadZoneProps) {
         <div className="flex flex-col items-center justify-center py-8">
           {isSearching ? (
             <>
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500 mb-4"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500 mb-4" />
               <div className="text-base text-pink-400 mb-2">画像を検索中...</div>
               <div className="text-xs text-gray-500">しばらくお待ちください</div>
             </>
@@ -105,7 +124,7 @@ export function ImageUploadZone({ onSearchComplete }: ImageUploadZoneProps) {
       >
         {isSearching ? (
           <div className="flex items-center space-x-2">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
             <span>検索中...</span>
           </div>
         ) : (

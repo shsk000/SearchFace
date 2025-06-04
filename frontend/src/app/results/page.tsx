@@ -1,37 +1,16 @@
 "use client";
 
+import type { SearchResult, SearchSuccessResponse } from "@/actions/search/type";
 import { PersonCard } from "@/components/search/PersonCard";
 import { ProductCard } from "@/components/search/ProductCard";
 import { Button } from "@/components/ui/button";
 import { BackgroundImages } from "@/features/background/BackgroundImages";
-import { ArrowLeft } from "lucide-react";
+import { AlertCircle, ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useState, useRef } from "react";
 
-// 仮データ
-const mockResults = [
-  {
-    id: 1,
-    name: "山田 美咲",
-    similarity: 92,
-    image_path: "https://placehold.co/300x300/8B5CF6/FFFFFF?text=No.1",
-    rank: 1,
-  },
-  {
-    id: 2,
-    name: "佐藤 愛子",
-    similarity: 87,
-    image_path: "https://placehold.co/300x300/06B6D4/FFFFFF?text=No.2",
-    rank: 2,
-  },
-  {
-    id: 3,
-    name: "田中 美優",
-    similarity: 84,
-    image_path: "https://placehold.co/300x300/10B981/FFFFFF?text=No.3",
-    rank: 3,
-  },
-];
-
+// アフィリエイト商品の仮データ
 const mockProducts = [
   {
     id: 1,
@@ -65,7 +44,126 @@ const mockProducts = [
   },
 ];
 
+interface PersonWithRank extends SearchResult {
+  id: number;
+  rank: number;
+}
+
 export default function ResultsPage() {
+  const [searchData, setSearchData] = useState<SearchSuccessResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const _router = useRouter();
+  const hasInitialized = useRef(false);
+
+  useEffect(() => {
+    // 既に初期化済みの場合は何もしない（StrictModeの2回目実行対策）
+    if (hasInitialized.current) {
+      return;
+    }
+
+    hasInitialized.current = true;
+
+    try {
+      const storedResults = sessionStorage.getItem("searchResults");
+
+      if (!storedResults) {
+        setError("検索結果が見つかりません。検索を再度実行してください。");
+        setLoading(false);
+        return;
+      }
+
+      const parsedResults: SearchSuccessResponse = JSON.parse(storedResults);
+
+      // データ形式の検証
+      if (!parsedResults.results || !Array.isArray(parsedResults.results)) {
+        setError("検索結果の形式が不正です。");
+        setLoading(false);
+        return;
+      }
+
+      setSearchData(parsedResults);
+      setLoading(false);
+
+      // セッションストレージをクリア（一度だけ使用）
+      sessionStorage.removeItem("searchResults");
+    } catch (err) {
+      setError(`検索結果の読み込みに失敗しました: ${err}`);
+      setLoading(false);
+    }
+  }, []); // 空の依存配列に変更
+
+  // 検索結果をランク付きのPersonWithRank形式に変換
+  const formatResults = (results: SearchResult[]): PersonWithRank[] => {
+    return results.slice(0, 3).map((result, index) => ({
+      ...result,
+      id: index + 1,
+      rank: index + 1,
+      // 類似度を距離から計算（距離が小さいほど類似度が高い）
+      similarity: Math.max(0, Math.round((1 - result.distance) * 100)),
+    }));
+  };
+
+  // ローディング状態
+  if (loading) {
+    return (
+      <main className="relative min-h-screen bg-zinc-900 text-white p-4 overflow-hidden">
+        <BackgroundImages />
+        <div className="relative z-10 max-w-7xl mx-auto flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto mb-4" />
+            <p className="text-lg">検索結果を読み込み中...</p>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  // エラー状態
+  if (error || !searchData) {
+    return (
+      <main className="relative min-h-screen bg-zinc-900 text-white p-4 overflow-hidden">
+        <BackgroundImages />
+        <div className="relative z-10 max-w-7xl mx-auto flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+            <h2 className="text-xl font-bold mb-4">エラーが発生しました</h2>
+            <p className="text-gray-400 mb-6">{error}</p>
+            <Link href="/">
+              <Button className="bg-pink-600 hover:bg-pink-700">
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                検索画面に戻る
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  // 検索結果が空の場合
+  if (!searchData.results || searchData.results.length === 0) {
+    return (
+      <main className="relative min-h-screen bg-zinc-900 text-white p-4 overflow-hidden">
+        <BackgroundImages />
+        <div className="relative z-10 max-w-7xl mx-auto flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <h2 className="text-xl font-bold mb-4">検索結果が見つかりませんでした</h2>
+            <p className="text-gray-400 mb-6">別の画像で再度お試しください。</p>
+            <Link href="/">
+              <Button className="bg-pink-600 hover:bg-pink-700">
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                検索画面に戻る
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  const formattedResults = formatResults(searchData.results);
+
   return (
     <main className="relative min-h-screen bg-zinc-900 text-white p-4 overflow-hidden">
       <BackgroundImages />
@@ -79,7 +177,12 @@ export default function ResultsPage() {
               検索に戻る
             </Button>
           </Link>
-          <h1 className="text-2xl font-bold">検索結果</h1>
+          <div className="text-center">
+            <h1 className="text-2xl font-bold">検索結果</h1>
+            <p className="text-sm text-gray-400">
+              処理時間: {searchData.processing_time.toFixed(2)}秒
+            </p>
+          </div>
           <div className="w-24" /> {/* スペーサー */}
         </div>
 
@@ -89,20 +192,32 @@ export default function ResultsPage() {
 
           {/* レスポンシブレイアウト */}
           <div className="flex flex-col lg:flex-row items-center justify-center gap-8 lg:gap-12">
-            {/* 2位 */}
-            <div className="order-2 lg:order-1">
-              <PersonCard person={mockResults[1]} isWinner={false} className="w-64 lg:w-72" />
-            </div>
+            {/* 2位（存在する場合） */}
+            {formattedResults[1] && (
+              <div className="order-2 lg:order-1">
+                <PersonCard
+                  person={formattedResults[1]}
+                  isWinner={false}
+                  className="w-64 lg:w-72"
+                />
+              </div>
+            )}
 
             {/* 1位（中央・大きめ） */}
             <div className="order-1 lg:order-2">
-              <PersonCard person={mockResults[0]} isWinner={true} className="w-80 lg:w-96" />
+              <PersonCard person={formattedResults[0]} isWinner={true} className="w-80 lg:w-96" />
             </div>
 
-            {/* 3位 */}
-            <div className="order-3 lg:order-3">
-              <PersonCard person={mockResults[2]} isWinner={false} className="w-64 lg:w-72" />
-            </div>
+            {/* 3位（存在する場合） */}
+            {formattedResults[2] && (
+              <div className="order-3 lg:order-3">
+                <PersonCard
+                  person={formattedResults[2]}
+                  isWinner={false}
+                  className="w-64 lg:w-72"
+                />
+              </div>
+            )}
           </div>
         </div>
 
