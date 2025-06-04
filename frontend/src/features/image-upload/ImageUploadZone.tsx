@@ -1,13 +1,13 @@
 "use client";
 
+import { getErrorMessage } from "@/actions/search/error";
+import { searchImage } from "@/actions/search/search";
+import { isErrorCode } from "@/actions/search/type";
 import { Button } from "@/components/ui/button";
+import { logger } from "@/lib/logger";
 import Image from "next/image";
 import type React from "react";
-import { searchImage } from "@/actions/search/search";
 import { useState } from "react";
-import { logger } from "@/lib/logger";
-import { isErrorCode } from "@/actions/search/type";
-import { getErrorMessage } from "@/actions/search/error";
 import { toast } from "sonner";
 
 interface ImageUploadZoneProps {
@@ -55,10 +55,14 @@ export function ImageUploadZone({ onSearchComplete }: ImageUploadZoneProps) {
     <form onSubmit={handleSubmit} className="space-y-4">
       <div
         className={`w-full bg-[#1a1a1a] border border-gray-700 p-6 rounded-xl transition-colors duration-200 ${
-          isSearching ? "border-pink-500 cursor-not-allowed" : "hover:border-pink-500 cursor-pointer"
+          isSearching
+            ? "border-pink-500 cursor-not-allowed"
+            : "hover:border-pink-500 cursor-pointer"
         }`}
         onClick={() => !isSearching && document.getElementById("fileInput")?.click()}
-        onKeyDown={(e) => e.key === "Enter" && !isSearching && document.getElementById("fileInput")?.click()}
+        onKeyDown={(e) =>
+          e.key === "Enter" && !isSearching && document.getElementById("fileInput")?.click()
+        }
       >
         <input
           id="fileInput"
