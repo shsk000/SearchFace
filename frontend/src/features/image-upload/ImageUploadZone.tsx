@@ -1,10 +1,11 @@
 "use client";
 
 import { searchImage } from "@/actions/search/search";
-import { SearchResultError, getErrorMessage } from "@/actions/search/error";
+import { getErrorMessage } from "@/actions/search/error";
 import { isErrorCode } from "@/actions/search/type";
 import { Button } from "@/components/ui/button";
 import { logger } from "@/lib/logger";
+import { saveSearchResults } from "@/lib/search-storage";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import type React from "react";
@@ -45,8 +46,7 @@ export function ImageUploadZone({ onSearchComplete }: ImageUploadZoneProps) {
       toast.success("検索が完了しました！");
 
       // 検索結果をセッションストレージに保存
-      const dataToStore = JSON.stringify(result);
-      sessionStorage.setItem("searchResults", dataToStore);
+      saveSearchResults(result);
 
       // 結果ページに遷移
       router.push("/results");

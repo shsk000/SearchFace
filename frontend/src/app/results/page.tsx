@@ -5,6 +5,7 @@ import { PersonCard } from "@/components/search/PersonCard";
 import { ProductCard } from "@/components/search/ProductCard";
 import { Button } from "@/components/ui/button";
 import { BackgroundImages } from "@/features/background/BackgroundImages";
+import { getAndClearSearchResults } from "@/lib/search-storage";
 import { AlertCircle, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -65,28 +66,16 @@ export default function ResultsPage() {
     hasInitialized.current = true;
 
     try {
-      const storedResults = sessionStorage.getItem("searchResults");
+      const results = getAndClearSearchResults();
 
-      if (!storedResults) {
+      if (!results) {
         setError("検索結果が見つかりません。検索を再度実行してください。");
         setLoading(false);
         return;
       }
 
-      const parsedResults: SearchSuccessResponse = JSON.parse(storedResults);
-
-      // データ形式の検証
-      if (!parsedResults.results || !Array.isArray(parsedResults.results)) {
-        setError("検索結果の形式が不正です。");
-        setLoading(false);
-        return;
-      }
-
-      setSearchData(parsedResults);
+      setSearchData(results);
       setLoading(false);
-
-      // セッションストレージをクリア（一度だけ使用）
-      sessionStorage.removeItem("searchResults");
     } catch (err) {
       setError(`検索結果の読み込みに失敗しました: ${err}`);
       setLoading(false);
