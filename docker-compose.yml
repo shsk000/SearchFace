@@ -1,0 +1,46 @@
+version: '3.3'
+
+services:
+  # Pythonバックエンド
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "10000:10000"
+    volumes:
+      - ./data:/app/data
+      - ./src:/app/src
+      - ./.env:/app/.env
+    environment:
+      - DEBUG=${DEBUG:-false}  # デフォルトはfalse
+      - API_HOST=0.0.0.0
+      - API_PORT=10000
+    command: python src/run_api.py
+    networks:
+      - searchface-network
+
+  # Next.jsフロントエンド
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - ./.env:/app/.env
+    command: npm run dev
+    depends_on:
+      - backend
+    networks:
+      - searchface-network
+
+networks:
+  searchface-network:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.0.0/16 
