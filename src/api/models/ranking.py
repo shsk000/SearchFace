@@ -23,7 +23,6 @@ class SearchHistoryItem(BaseModel):
     result_rank: int
     person_id: int
     name: str
-    similarity: float
     distance: float
     image_path: str
     search_timestamp: datetime

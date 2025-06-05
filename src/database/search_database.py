@@ -37,7 +37,6 @@ class SearchDatabase:
                 search_session_id TEXT NOT NULL,
                 result_rank INTEGER NOT NULL,
                 person_id INTEGER NOT NULL,
-                similarity REAL NOT NULL,
                 distance REAL NOT NULL,
                 image_path TEXT NOT NULL,
                 search_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -59,7 +58,7 @@ class SearchDatabase:
         """検索結果を記録（1～3位まで）
 
         Args:
-            search_results: 検索結果のリスト（各要素は person_id, name, similarity, distance, image_path を持つ）
+            search_results: 検索結果のリスト（各要素は person_id, name, distance, image_path を持つ）
             metadata: 追加のメタデータ
 
         Returns:
@@ -75,13 +74,12 @@ class SearchDatabase:
             for rank, result in enumerate(search_results[:3], 1):  # 最大3位まで
                 self.cursor.execute("""
                     INSERT INTO search_history
-                    (search_session_id, result_rank, person_id, similarity, distance, image_path, metadata)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    (search_session_id, result_rank, person_id, distance, image_path, metadata)
+                    VALUES (?, ?, ?, ?, ?, ?)
                 """, (
                     search_session_id,
                     rank,
                     result['person_id'],
-                    result['similarity'],
                     result['distance'],
                     result['image_path'],
                     json.dumps(metadata) if metadata else None
@@ -132,12 +130,11 @@ class SearchDatabase:
             'search_session_id': row[1],
             'result_rank': row[2],
             'person_id': row[3],
-            'similarity': row[4],
-            'distance': row[5],
-            'image_path': row[6],
-            'search_timestamp': row[7],
-            'metadata': json.loads(row[8]) if row[8] else None,
-            'name': row[9]  # persons テーブルからの名前
+            'distance': row[4],
+            'image_path': row[5],
+            'search_timestamp': row[6],
+            'metadata': json.loads(row[7]) if row[7] else None,
+            'name': row[8]  # persons テーブルからの名前
         } for row in rows]
 
     def get_search_sessions(self, limit: int = 20) -> List[Dict[str, Any]]:
@@ -166,7 +163,7 @@ class SearchDatabase:
 
             # 各セッションの詳細結果を取得
             self.cursor.execute("""
-                SELECT sh.result_rank, sh.person_id, p.name, sh.similarity, sh.distance, sh.image_path
+                SELECT sh.result_rank, sh.person_id, p.name, sh.distance, sh.image_path
                 FROM search_history sh
                 JOIN persons p ON sh.person_id = p.person_id
                 WHERE sh.search_session_id = ?
@@ -179,9 +176,8 @@ class SearchDatabase:
                     'rank': result_row[0],
                     'person_id': result_row[1],
                     'name': result_row[2],
-                    'similarity': result_row[3],
-                    'distance': result_row[4],
-                    'image_path': result_row[5]
+                    'distance': result_row[3],
+                    'image_path': result_row[4]
                 })
 
             sessions.append({
@@ -232,7 +228,7 @@ class SearchDatabase:
             Optional[Dict[str, Any]]: 1位の結果、存在しない場合はNone
         """
         self.cursor.execute("""
-            SELECT sh.person_id, p.name, sh.similarity
+            SELECT sh.person_id, p.name
             FROM search_history sh
             JOIN persons p ON sh.person_id = p.person_id
             WHERE sh.search_session_id = ? AND sh.result_rank = 1
@@ -242,8 +238,7 @@ class SearchDatabase:
         if result:
             return {
                 'person_id': result[0],
-                'name': result[1],
-                'similarity': result[2]
+                'name': result[1]
             }
         return None
 
