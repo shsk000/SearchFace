@@ -1,3 +1,4 @@
+import os
 import time
 from fastapi import APIRouter, UploadFile, File
 from typing import List, Dict, Any
@@ -13,8 +14,16 @@ from face import face_utils
 from utils.similarity import calculate_similarity
 from api.models.response import SearchResult, SearchResponse
 
+# 新しいデータベースクラスをインポート（記録用）
+from database.search_database import SearchDatabase
+from database.ranking_database import RankingDatabase
+
 router = APIRouter(prefix="/api", tags=["search"])
 logger = logging.getLogger(__name__)
+
+# データベースインスタンスの初期化（記録用）
+search_db = SearchDatabase()
+ranking_db = RankingDatabase()
 
 @router.post("/search", response_model=SearchResponse)
 async def search_face(
@@ -87,6 +96,31 @@ async def search_face(
             )
 
         processing_time = time.time() - start_time
+
+        # 検索結果がある場合、ランキングデータベースに記録（person_idベース）
+        if search_results and results:
+            try:
+                # 検索履歴を記録（resultsはperson_idを含む元のデータ）
+                session_id = search_db.record_search_results(
+                    search_results=results,  # person_idを含む元のresults
+                    metadata={
+                        'filename': image.filename,
+                        'file_size': image.size,
+                        'processing_time': processing_time
+                    }
+                )
+
+                # 1位結果をランキングに反映
+                winner = results[0]  # person_idを含む元のresults
+                ranking_db.update_ranking(
+                    person_id=winner['person_id']
+                )
+
+                logger.info(f"検索結果記録完了: セッション={session_id}, 1位={winner['name']}")
+
+            except Exception as db_error:
+                # データベースエラーは検索結果の返却をブロックしない
+                logger.error(f"検索結果の記録に失敗（検索は成功）: {str(db_error)}")
 
         logger.debug(f"results: {search_results}")
 
