@@ -1,57 +1,33 @@
-import sqlite3
 import json
 import os
 import uuid
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 from utils import log_utils
-
+import libsql_client
 # ロギングの設定
 logger = log_utils.get_logger(__name__)
 
 class SearchDatabase:
     """検索履歴を管理するデータベースクラス"""
 
-    def __init__(self, db_path: str = "data/face_database.db"):
+    def __init__(self):
         """検索履歴データベースの初期化
 
         Args:
-            db_path (str): データベースファイルのパス
+            db_url (str): TursoデータベースURL（環境変数から取得）
         """
-        self.db_path = db_path
+        self.db_url = os.getenv('TURSO_DATABASE_URL')
+        self.db_token = os.getenv('TURSO_AUTH_TOKEN')
 
-        # データディレクトリが存在しない場合は作成
-        os.makedirs(os.path.dirname(db_path), exist_ok=True)
+        if not self.db_url:
+            raise ValueError("TURSO_DATABASE_URL環境変数が設定されていません")
 
-        self.conn = sqlite3.connect(db_path)
-        self.cursor = self.conn.cursor()
-        self._create_search_tables()
+        self.conn = libsql_client.create_client_sync(
+            url=self.db_url,
+            auth_token=self.db_token
+        )
 
-    def _create_search_tables(self):
-        """検索履歴関連のテーブルを作成"""
-
-        # 検索履歴テーブル（1回の検索で複数行記録）
-        self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS search_history (
-                history_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                search_session_id TEXT NOT NULL,
-                result_rank INTEGER NOT NULL,
-                person_id INTEGER NOT NULL,
-                distance REAL NOT NULL,
-                image_path TEXT NOT NULL,
-                search_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                metadata TEXT,
-                FOREIGN KEY (person_id) REFERENCES persons(person_id) ON DELETE CASCADE
-            )
-        """)
-
-        # インデックス作成
-        self.cursor.execute("CREATE INDEX IF NOT EXISTS idx_search_history_person_id ON search_history(person_id)")
-        self.cursor.execute("CREATE INDEX IF NOT EXISTS idx_search_history_timestamp ON search_history(search_timestamp)")
-        self.cursor.execute("CREATE INDEX IF NOT EXISTS idx_search_history_session_rank ON search_history(search_session_id, result_rank)")
-
-        self.conn.commit()
-        logger.info("検索履歴テーブルの初期化が完了しました")
 
     def record_search_results(self, search_results: List[Dict[str, Any]],
                             metadata: Optional[Dict] = None) -> str:
@@ -65,33 +41,29 @@ class SearchDatabase:
             str: 記録されたsearch_session_id
         """
         try:
-            self.conn.execute("BEGIN TRANSACTION")
-
             # セッションIDを生成
             search_session_id = str(uuid.uuid4())
 
             # 各順位の結果を記録
             for rank, result in enumerate(search_results[:3], 1):  # 最大3位まで
-                self.cursor.execute("""
+                self.conn.execute("""
                     INSERT INTO search_history
                     (search_session_id, result_rank, person_id, distance, image_path, metadata)
                     VALUES (?, ?, ?, ?, ?, ?)
-                """, (
+                """, [
                     search_session_id,
                     rank,
                     result['person_id'],
                     result['distance'],
                     result['image_path'],
                     json.dumps(metadata) if metadata else None
-                ))
+                ])
 
-            self.conn.commit()
             logger.info(f"検索結果を記録しました: {len(search_results)}件 (セッション: {search_session_id})")
 
             return search_session_id
 
         except Exception as e:
-            self.conn.rollback()
             logger.error(f"検索結果の記録に失敗: {str(e)}")
             raise
 
@@ -106,24 +78,24 @@ class SearchDatabase:
             List[Dict[str, Any]]: 検索履歴
         """
         if person_id:
-            self.cursor.execute("""
+            result = self.conn.execute("""
                 SELECT sh.*, p.name
                 FROM search_history sh
                 JOIN persons p ON sh.person_id = p.person_id
                 WHERE sh.person_id = ?
                 ORDER BY sh.search_timestamp DESC
                 LIMIT ?
-            """, (person_id, limit))
+            """, [person_id, limit])
         else:
-            self.cursor.execute("""
+            result = self.conn.execute("""
                 SELECT sh.*, p.name
                 FROM search_history sh
                 JOIN persons p ON sh.person_id = p.person_id
                 ORDER BY sh.search_timestamp DESC
                 LIMIT ?
-            """, (limit,))
+            """, [limit])
 
-        rows = self.cursor.fetchall()
+        rows = result.rows
 
         return [{
             'history_id': row[0],
@@ -146,7 +118,7 @@ class SearchDatabase:
         Returns:
             List[Dict[str, Any]]: 検索セッション一覧
         """
-        self.cursor.execute("""
+        result = self.conn.execute("""
             SELECT
                 search_session_id,
                 search_timestamp,
@@ -155,23 +127,23 @@ class SearchDatabase:
             GROUP BY search_session_id, search_timestamp
             ORDER BY search_timestamp DESC
             LIMIT ?
-        """, (limit,))
+        """, [limit])
 
         sessions = []
-        for row in self.cursor.fetchall():
+        for row in result.rows:
             session_id = row[0]
 
             # 各セッションの詳細結果を取得
-            self.cursor.execute("""
+            detail_result = self.conn.execute("""
                 SELECT sh.result_rank, sh.person_id, p.name, sh.distance, sh.image_path
                 FROM search_history sh
                 JOIN persons p ON sh.person_id = p.person_id
                 WHERE sh.search_session_id = ?
                 ORDER BY sh.result_rank
-            """, (session_id,))
+            """, [session_id])
 
             results = []
-            for result_row in self.cursor.fetchall():
+            for result_row in detail_result.rows:
                 results.append({
                     'rank': result_row[0],
                     'person_id': result_row[1],
@@ -196,20 +168,20 @@ class SearchDatabase:
             Dict[str, Any]: 統計情報
         """
         # 総検索セッション数
-        self.cursor.execute("SELECT COUNT(DISTINCT search_session_id) FROM search_history")
-        total_search_sessions = self.cursor.fetchone()[0]
+        result = self.conn.execute("SELECT COUNT(DISTINCT search_session_id) FROM search_history")
+        total_search_sessions = result.rows[0][0]
 
         # 総検索結果数
-        self.cursor.execute("SELECT COUNT(*) FROM search_history")
-        total_search_results = self.cursor.fetchone()[0]
+        result = self.conn.execute("SELECT COUNT(*) FROM search_history")
+        total_search_results = result.rows[0][0]
 
         # 最初の検索日
-        self.cursor.execute("SELECT MIN(search_timestamp) FROM search_history")
-        first_search = self.cursor.fetchone()[0]
+        result = self.conn.execute("SELECT MIN(search_timestamp) FROM search_history")
+        first_search = result.rows[0][0]
 
         # 最新の検索日
-        self.cursor.execute("SELECT MAX(search_timestamp) FROM search_history")
-        latest_search = self.cursor.fetchone()[0]
+        result = self.conn.execute("SELECT MAX(search_timestamp) FROM search_history")
+        latest_search = result.rows[0][0]
 
         return {
             'total_search_sessions': total_search_sessions,
@@ -227,21 +199,21 @@ class SearchDatabase:
         Returns:
             Optional[Dict[str, Any]]: 1位の結果、存在しない場合はNone
         """
-        self.cursor.execute("""
+        result = self.conn.execute("""
             SELECT sh.person_id, p.name
             FROM search_history sh
             JOIN persons p ON sh.person_id = p.person_id
             WHERE sh.search_session_id = ? AND sh.result_rank = 1
-        """, (session_id,))
+        """, [session_id])
 
-        result = self.cursor.fetchone()
-        if result:
+        if result.rows:
+            row = result.rows[0]
             return {
-                'person_id': result[0],
-                'name': result[1]
+                'person_id': row[0],
+                'name': row[1]
             }
         return None
 
     def close(self):
         """データベース接続を閉じる"""
-        self.conn.close()
+        pass  # libsql_clientでは明示的なclose不要

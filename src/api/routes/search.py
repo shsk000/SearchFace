@@ -21,10 +21,6 @@ from database.ranking_database import RankingDatabase
 router = APIRouter(prefix="/api", tags=["search"])
 logger = logging.getLogger(__name__)
 
-# データベースインスタンスの初期化（記録用）
-search_db = SearchDatabase()
-ranking_db = RankingDatabase()
-
 @router.post("/search", response_model=SearchResponse)
 async def search_face(
     image: UploadFile = File(...),
@@ -97,9 +93,15 @@ async def search_face(
 
         processing_time = time.time() - start_time
 
-        # 検索結果がある場合、ランキングデータベースに記録（person_idベース）
+                # 検索結果がある場合、ランキングデータベースに記録（person_idベース）
         if search_results and results:
+            search_db = None
+            ranking_db = None
             try:
+                # データベースインスタンスを関数内で初期化
+                search_db = SearchDatabase()
+                ranking_db = RankingDatabase()
+
                 # 検索履歴を記録（resultsはperson_idを含む元のデータ）
                 session_id = search_db.record_search_results(
                     search_results=results,  # person_idを含む元のresults
@@ -121,6 +123,12 @@ async def search_face(
             except Exception as db_error:
                 # データベースエラーは検索結果の返却をブロックしない
                 logger.error(f"検索結果の記録に失敗（検索は成功）: {str(db_error)}")
+            finally:
+                # 確実にデータベース接続を閉じる
+                if search_db is not None:
+                    search_db.close()
+                if ranking_db is not None:
+                    ranking_db.close()
 
         logger.debug(f"results: {search_results}")
 

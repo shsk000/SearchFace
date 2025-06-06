@@ -30,9 +30,12 @@ APIエンドポイント：
 import argparse
 import os
 import uvicorn
+from dotenv import load_dotenv
 from utils import log_utils
 from utils.r2_uploader import download_database_files
 from src.api.main import app
+
+load_dotenv('/etc/secrets/.env')
 
 # ロギングの初期化
 log_utils.setup_logging()
@@ -40,18 +43,18 @@ logger = log_utils.get_logger(__name__)
 
 def start_server(host: str, port: int, debug: bool = False):
     """サーバーを起動する
-    
+
     Args:
         host (str): ホストアドレス
         port (int): ポート番号
         debug (bool): デバッグモード（ホットリロード）の有効/無効
     """
     logger.info(f"顔画像の類似検索APIを起動します（{host}:{port}）")
-    
+
     # 開発環境の場合のみホットリロードを有効化
     reload = debug
     reload_dirs = ["src"] if debug else None
-    
+
     uvicorn.run(
         "src.api.main:app",
         host=host,
@@ -67,16 +70,16 @@ def main():
     parser.add_argument("--host", type=str, default="0.0.0.0", help="ホストアドレス（デフォルト: 0.0.0.0）")
     parser.add_argument("--port", type=int, default=10000, help="ポート番号（デフォルト: 10000）")
     parser.add_argument("--sync-db", type=bool, default=False, help="データベースを同期するかどうか（デフォルト: False）")
-    
+
     args = parser.parse_args()
 
     if args.sync_db:
         logger.info("データベースを同期します")
         download_database_files()
-    
+
     # 環境変数からデバッグモードを取得
     debug = os.getenv("DEBUG", "false").lower() == "true"
-    
+
     # サーバーを起動
     start_server(args.host, args.port, debug)
 

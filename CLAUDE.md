@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-SearchFace is a face recognition and similarity search application built with Python FastAPI backend and Next.js frontend. Users can upload images to find similar faces from a pre-built database using FAISS vector similarity search.
+SearchFace is a face recognition and similarity search application built with Python FastAPI backend and Next.js frontend. Users can upload images to find similar faces from a pre-built database using FAISS vector similarity search. The application uses Turso (SQLite-compatible cloud database) for data storage.
 
 ## Development Commands
 
@@ -102,7 +102,7 @@ npm run check  # For linting/formatting
 
 ### Backend Structure (`src/`)
 - **api/**: FastAPI application with routes and models
-- **database/**: SQLite + FAISS vector database layer
+- **database/**: Turso (SQLite-compatible) + FAISS vector database layer
 - **face/**: Face detection and encoding using face_recognition library
 - **image/**: Image processing, collection, and storage (Cloudflare R2)
 - **core/**: Error handling, exceptions, and middleware
@@ -137,8 +137,28 @@ npm run check  # For linting/formatting
 
 - **Ports**: Backend (10000), Frontend (3000)
 - **Environment**: Set DEBUG=true for hot reload in development
-- **Database Files**: Stored in `/data/` directory (face.index, face_database.db)
+- **Database**: 
+  - FAISS index stored in `/data/` directory (face.index)
+  - SQLite data managed by Turso cloud database
+  - Required environment variables: TURSO_DATABASE_URL, TURSO_AUTH_TOKEN
 - **Docker Network**: Uses bridge network with subnet 172.20.0.0/16
+
+## Database Setup (Turso)
+
+1. Create a `.env` file from `.env.sample`
+2. Set your Turso database credentials:
+   ```bash
+   TURSO_DATABASE_URL=libsql://your-database-name.turso.io
+   TURSO_AUTH_TOKEN=your-auth-token-here
+   ```
+3. **IMPORTANT**: Run the database schema setup before starting the application:
+   ```bash
+   # Using Turso CLI
+   turso db shell your-database-name < database_schema.sql
+   
+   # Or copy the contents of database_schema.sql and execute in Turso web console
+   ```
+4. The schema file creates the required tables for search history and ranking features
 
 ## Code Style Guidelines
 
