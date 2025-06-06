@@ -1,13 +1,19 @@
 -- SearchFace Database Schema for Turso
 -- This file contains table definitions for search history and ranking features
 -- Run this SQL file in your Turso database before starting the application
--- Note: Core face recognition tables (persons, face_images, face_indexes) are managed separately
+--
+-- IMPORTANT NOTES:
+-- - Core face recognition tables (persons, face_images, face_indexes) are stored in LOCAL SQLite
+-- - Search history and ranking tables are stored in Turso (cloud database)
+-- - Foreign key constraints to persons table are NOT used due to cross-database limitations
+-- - Data integrity between local SQLite and Turso must be maintained at application level
 
 -- ========================================
 -- Search History Tables
 -- ========================================
 
 -- 検索履歴テーブル（1回の検索で複数行記録）
+-- Note: person_idはローカルSQLiteのpersonsテーブルを参照するが、異なるDB間のため外部キー制約は使用しない
 CREATE TABLE IF NOT EXISTS search_history (
     history_id INTEGER PRIMARY KEY AUTOINCREMENT,
     search_session_id TEXT NOT NULL,
@@ -16,8 +22,7 @@ CREATE TABLE IF NOT EXISTS search_history (
     distance REAL NOT NULL,
     image_path TEXT NOT NULL,
     search_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    metadata TEXT,
-    FOREIGN KEY (person_id) REFERENCES persons(person_id) ON DELETE CASCADE
+    metadata TEXT
 );
 
 -- ========================================
@@ -25,14 +30,14 @@ CREATE TABLE IF NOT EXISTS search_history (
 -- ========================================
 
 -- 人物ランキングテーブル（集計データ）
+-- Note: person_idはローカルSQLiteのpersonsテーブルを参照するが、異なるDB間のため外部キー制約は使用しない
 CREATE TABLE IF NOT EXISTS person_ranking (
     ranking_id INTEGER PRIMARY KEY AUTOINCREMENT,
     person_id INTEGER NOT NULL UNIQUE,
     win_count INTEGER DEFAULT 0,
     last_win_timestamp TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (person_id) REFERENCES persons(person_id) ON DELETE CASCADE
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- ========================================

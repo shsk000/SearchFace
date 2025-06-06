@@ -3,7 +3,8 @@ import os
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 from utils import log_utils
-import libsql_client
+import libsql_experimental as libsql
+
 # ロギングの設定
 logger = log_utils.get_logger(__name__)
 
@@ -22,10 +23,9 @@ class RankingDatabase:
         if not self.db_url:
             raise ValueError("TURSO_DATABASE_URL環境変数が設定されていません")
 
-        self.conn = libsql_client.create_client_sync(
-            url=self.db_url,
-            auth_token=self.db_token
-        )
+        # Embedded Replicas方式で接続
+        self.conn = libsql.connect("ranking.db", sync_url=self.db_url, auth_token=self.db_token)
+        self.conn.sync()  # 初回同期
 
     def update_ranking(self, person_id: int) -> None:
         """ランキングテーブルを更新（1位結果用）
@@ -37,12 +37,13 @@ class RankingDatabase:
             # 既存レコードをチェック
             result = self.conn.execute(
                 "SELECT win_count FROM person_ranking WHERE person_id = ?",
-                [person_id]
+                (person_id,)
             )
 
-            if result.rows:
+            rows = result.fetchall()
+            if rows:
                 # 既存レコードを更新
-                win_count = result.rows[0][0] + 1
+                win_count = rows[0][0] + 1
 
                 self.conn.execute("""
                     UPDATE person_ranking
@@ -50,14 +51,20 @@ class RankingDatabase:
                         last_win_timestamp = CURRENT_TIMESTAMP,
                         updated_at = CURRENT_TIMESTAMP
                     WHERE person_id = ?
-                """, [win_count, person_id])
+                """, (win_count, person_id))
+
+                self.conn.commit()
+                self.conn.sync()
             else:
                 # 新規レコードを挿入
                 self.conn.execute("""
                     INSERT INTO person_ranking
                     (person_id, win_count, last_win_timestamp)
                     VALUES (?, 1, CURRENT_TIMESTAMP)
-                """, [person_id])
+                """, (person_id,))
+
+            self.conn.commit()
+            self.conn.sync()
 
             logger.info(f"ランキングを更新しました: person_id={person_id}")
 
@@ -80,10 +87,10 @@ class RankingDatabase:
             JOIN persons p ON pr.person_id = p.person_id
             ORDER BY pr.win_count DESC
             LIMIT ?
-        """, [limit])
+        """, (limit,))
 
         results = []
-        for idx, row in enumerate(result.rows):
+        for idx, row in enumerate(result.fetchall()):
             # 人物の代表画像を取得（最新の画像）
             image_result = self.conn.execute("""
                 SELECT fi.image_path
@@ -91,9 +98,10 @@ class RankingDatabase:
                 WHERE fi.person_id = ?
                 ORDER BY fi.created_at DESC
                 LIMIT 1
-            """, [row[0]])
+            """, (row[0],))
 
-            image_path = image_result.rows[0][0] if image_result.rows else None
+            image_rows = image_result.fetchall()
+            image_path = image_rows[0][0] if image_rows else None
 
             results.append({
                 'rank': idx + 1,
@@ -114,11 +122,11 @@ class RankingDatabase:
         """
         # 総人物数（ランキングに登録されている）
         result = self.conn.execute("SELECT COUNT(*) FROM person_ranking")
-        total_persons = result.rows[0][0]
+        total_persons = result.fetchall()[0][0]
 
         # 総勝利数
         result = self.conn.execute("SELECT SUM(win_count) FROM person_ranking")
-        total_wins = result.rows[0][0] or 0
+        total_wins = result.fetchall()[0][0] or 0
 
         # トップ人物
         result = self.conn.execute("""
@@ -128,11 +136,12 @@ class RankingDatabase:
             ORDER BY pr.win_count DESC
             LIMIT 1
         """)
+        rows = result.fetchall()
         top_person = {
-            'person_id': result.rows[0][0],
-            'name': result.rows[0][1],
-            'win_count': result.rows[0][2]
-        } if result.rows else None
+            'person_id': rows[0][0],
+            'name': rows[0][1],
+            'win_count': rows[0][2]
+        } if rows else None
 
         return {
             'total_persons': total_persons,

@@ -1,10 +1,12 @@
 import json
 import os
+import sqlite3
 import uuid
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 from utils import log_utils
-import libsql_client
+import libsql_experimental as libsql
+
 # ロギングの設定
 logger = log_utils.get_logger(__name__)
 
@@ -23,10 +25,9 @@ class SearchDatabase:
         if not self.db_url:
             raise ValueError("TURSO_DATABASE_URL環境変数が設定されていません")
 
-        self.conn = libsql_client.create_client_sync(
-            url=self.db_url,
-            auth_token=self.db_token
-        )
+        # Embedded Replicas方式で接続
+        self.conn = libsql.connect("search_history.db", sync_url=self.db_url, auth_token=self.db_token)
+        self.conn.sync()  # 初回同期
 
 
     def record_search_results(self, search_results: List[Dict[str, Any]],
@@ -50,14 +51,17 @@ class SearchDatabase:
                     INSERT INTO search_history
                     (search_session_id, result_rank, person_id, distance, image_path, metadata)
                     VALUES (?, ?, ?, ?, ?, ?)
-                """, [
+                """, (
                     search_session_id,
                     rank,
                     result['person_id'],
                     result['distance'],
                     result['image_path'],
                     json.dumps(metadata) if metadata else None
-                ])
+                ))
+
+            self.conn.commit()
+            self.conn.sync()
 
             logger.info(f"検索結果を記録しました: {len(search_results)}件 (セッション: {search_session_id})")
 
@@ -85,7 +89,7 @@ class SearchDatabase:
                 WHERE sh.person_id = ?
                 ORDER BY sh.search_timestamp DESC
                 LIMIT ?
-            """, [person_id, limit])
+            """, (person_id, limit))
         else:
             result = self.conn.execute("""
                 SELECT sh.*, p.name
@@ -93,9 +97,9 @@ class SearchDatabase:
                 JOIN persons p ON sh.person_id = p.person_id
                 ORDER BY sh.search_timestamp DESC
                 LIMIT ?
-            """, [limit])
+            """, (limit,))
 
-        rows = result.rows
+        rows = result.fetchall()
 
         return [{
             'history_id': row[0],
@@ -127,10 +131,10 @@ class SearchDatabase:
             GROUP BY search_session_id, search_timestamp
             ORDER BY search_timestamp DESC
             LIMIT ?
-        """, [limit])
+        """, (limit,))
 
         sessions = []
-        for row in result.rows:
+        for row in result.fetchall():
             session_id = row[0]
 
             # 各セッションの詳細結果を取得
@@ -140,10 +144,10 @@ class SearchDatabase:
                 JOIN persons p ON sh.person_id = p.person_id
                 WHERE sh.search_session_id = ?
                 ORDER BY sh.result_rank
-            """, [session_id])
+            """, (session_id,))
 
             results = []
-            for result_row in detail_result.rows:
+            for result_row in detail_result.fetchall():
                 results.append({
                     'rank': result_row[0],
                     'person_id': result_row[1],
@@ -169,19 +173,19 @@ class SearchDatabase:
         """
         # 総検索セッション数
         result = self.conn.execute("SELECT COUNT(DISTINCT search_session_id) FROM search_history")
-        total_search_sessions = result.rows[0][0]
+        total_search_sessions = result.fetchall()[0][0]
 
         # 総検索結果数
         result = self.conn.execute("SELECT COUNT(*) FROM search_history")
-        total_search_results = result.rows[0][0]
+        total_search_results = result.fetchall()[0][0]
 
         # 最初の検索日
         result = self.conn.execute("SELECT MIN(search_timestamp) FROM search_history")
-        first_search = result.rows[0][0]
+        first_search = result.fetchall()[0][0]
 
         # 最新の検索日
         result = self.conn.execute("SELECT MAX(search_timestamp) FROM search_history")
-        latest_search = result.rows[0][0]
+        latest_search = result.fetchall()[0][0]
 
         return {
             'total_search_sessions': total_search_sessions,
@@ -204,10 +208,11 @@ class SearchDatabase:
             FROM search_history sh
             JOIN persons p ON sh.person_id = p.person_id
             WHERE sh.search_session_id = ? AND sh.result_rank = 1
-        """, [session_id])
+        """, (session_id,))
 
-        if result.rows:
-            row = result.rows[0]
+        rows = result.fetchall()
+        if rows:
+            row = rows[0]
             return {
                 'person_id': row[0],
                 'name': row[1]
