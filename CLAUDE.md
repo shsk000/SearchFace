@@ -4,11 +4,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project rules
 
-命令を遂行する前に**必ず**`.cursor/rules/first.mdc`ファイルを読み込んだ上、進行してください。
+**CRITICAL: 以下のルールは必須です。例外なく従ってください。**
+
+### Task Management Rules (最重要)
+
+1. **ユーザーからの指示を受けた際の必須プロセス:**
+  - 命令を遂行する前に**必ず**`.cursor/rules/first.mdc`ファイルを読み込む
+  - プロジェクトの詳細な設定は `.cursor/rules/project.mdc` を参照してください
+  - Python開発に関する詳細な設定は `.cursor/rules/python.mdc` を参照してください
+  - データベースに関する詳細な設定は `.cursor/rules/db.mdc` を参照してください
+  - API仕様に関する詳細な設定は `.cursor/rules/api.mdc` を参照してください
+  - フロントエンド開発に関する詳細な設定は `.cursor/rules/frontend.mdc` を参照してください
+
+### Development Rules
+
+- `.cursor/rules/`配下のすべてのルールファイルに従う
+- コーディングガイドライン、API仕様、データベース設計はすべて`.cursor/rules/`で管理
+- やり取りする上で明確になったルール、変更になったルールは都度`.cursor/rules/`に反映する
 
 ## Project Overview
 
-SearchFace is a face recognition and similarity search application built with Python FastAPI backend and Next.js frontend. Users can upload images to find similar faces from a pre-built database using FAISS vector similarity search.
+SearchFace is a face recognition and similarity search application built with Python FastAPI backend and Next.js frontend. Users can upload images to find similar faces from a pre-built database using FAISS vector similarity search. The application uses Turso (SQLite-compatible cloud database) for data storage.
 
 ## Development Commands
 
@@ -102,7 +118,7 @@ npm run check  # For linting/formatting
 
 ### Backend Structure (`src/`)
 - **api/**: FastAPI application with routes and models
-- **database/**: SQLite + FAISS vector database layer
+- **database/**: Turso (SQLite-compatible) + FAISS vector database layer
 - **face/**: Face detection and encoding using face_recognition library
 - **image/**: Image processing, collection, and storage (Cloudflare R2)
 - **core/**: Error handling, exceptions, and middleware
@@ -137,8 +153,28 @@ npm run check  # For linting/formatting
 
 - **Ports**: Backend (10000), Frontend (3000)
 - **Environment**: Set DEBUG=true for hot reload in development
-- **Database Files**: Stored in `/data/` directory (face.index, face_database.db)
+- **Database**:
+  - FAISS index stored in `/data/` directory (face.index)
+  - SQLite data managed by Turso cloud database
+  - Required environment variables: TURSO_DATABASE_URL, TURSO_AUTH_TOKEN
 - **Docker Network**: Uses bridge network with subnet 172.20.0.0/16
+
+## Database Setup (Turso)
+
+1. Create a `.env` file from `.env.sample`
+2. Set your Turso database credentials:
+   ```bash
+   TURSO_DATABASE_URL=libsql://your-database-name.turso.io
+   TURSO_AUTH_TOKEN=your-auth-token-here
+   ```
+3. **IMPORTANT**: Run the database schema setup before starting the application:
+   ```bash
+   # Using Turso CLI
+   turso db shell your-database-name < database_schema.sql
+
+   # Or copy the contents of database_schema.sql and execute in Turso web console
+   ```
+4. The schema file creates the required tables for search history and ranking features
 
 ## Code Style Guidelines
 
@@ -163,3 +199,67 @@ This project follows a structured development approach with task management file
 - **Backend testing**: Use `docker-compose exec backend python [script]`
 - **Code quality**: Use `docker-compose exec frontend npm run check` for linting
 - **Hot reload**: Both frontend and backend support hot reload in development mode
+
+## File Update and Restart Procedures
+
+When updating code files, follow these container restart procedures to ensure changes take effect:
+
+### Frontend File Updates
+```bash
+# Frontend files (.tsx, .ts, .js, .css, etc.) are automatically updated via hot reload
+# No restart required - just save the file and changes will be reflected immediately
+
+# Only restart if frontend container stops responding or has issues
+docker-compose restart frontend
+
+# Alternative: If frontend container stops responding
+docker-compose down
+docker-compose up frontend
+```
+
+### Backend File Updates
+```bash
+# After updating backend Python files (.py)
+docker-compose restart backend
+
+# For database schema changes or major updates
+docker-compose down
+docker-compose up backend
+```
+
+### Full Stack Updates
+```bash
+# When updating both frontend and backend files
+docker-compose restart
+
+# For major changes or if issues persist
+docker-compose down
+docker-compose up
+```
+
+### Verification Steps After Updates
+1. **Check container status**: `docker-compose ps`
+2. **View logs for errors**: `docker-compose logs -f [service_name]`
+3. **Test API endpoints**:
+   ```bash
+   # Test backend API
+   curl -X GET "http://0.0.0.0:10000/api/ranking?limit=5"
+
+   # Test frontend access
+   curl -X GET "http://0.0.0.0:3000"
+   ```
+4. **Frontend accessibility**: Open browser to `http://localhost:3000`
+5. **Backend API docs**: Open browser to `http://localhost:10000/docs`
+
+### Common Issues and Solutions
+- **Frontend hot reload not working**: Restart frontend container
+- **Backend changes not reflected**: Restart backend container
+- **Database connection issues**: Check environment variables and restart backend
+- **Port conflicts**: Use `docker-compose down` then `docker-compose up`
+- **Build errors**: Check logs with `docker-compose logs [service_name]`
+
+### Important Notes
+- **Frontend**: Uses Next.js with hot reload - file changes are automatically reflected without restart
+- **Backend**: Python code changes require container restart to take effect
+- **Database**: Schema changes need backend restart and possibly manual migration
+- **Environment variables**: Changes require full container restart

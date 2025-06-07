@@ -24,21 +24,21 @@ export function saveSearchResults(data: SearchSuccessResponse): void {
 export function getSearchResults(): SearchSuccessResponse | null {
   try {
     const storedResults = sessionStorage.getItem(SEARCH_RESULTS_KEY);
-    
+
     if (!storedResults) {
       logger.info("セッションストレージに検索結果が見つかりません");
       return null;
     }
 
     const parsedResults = JSON.parse(storedResults);
-    
+
     // データ形式の検証
     const validationResult = searchSuccessResponseSchema.safeParse(parsedResults);
     if (!validationResult.success) {
       logger.error("検索結果の形式が不正です", { error: validationResult.error });
       throw new Error("検索結果の形式が不正です");
     }
-    
+
     logger.info("セッションストレージから検索結果を取得しました");
     return validationResult.data;
   } catch (error) {

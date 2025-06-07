@@ -9,7 +9,7 @@ COPY requirements.txt ./
 COPY src/ ./src/
 
 # face_recognition系は除外した requirements.txt を使ってpip install
-# face_recognition==1.3.0	
+# face_recognition==1.3.0
 # dlib==19.24.0 〜 19.24.8
 # opencv-python
 # numpy, pillow
@@ -18,6 +18,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # 環境変数の設定（任意）
 ENV PYTHONPATH=/app
+
+# /etc/secretsディレクトリを作成
+RUN mkdir -p /etc/secrets
 
 # ポートを公開（FastAPIやUvicorn用）
 EXPOSE 10000

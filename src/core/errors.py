@@ -33,7 +33,7 @@ class ErrorCode(str, Enum):
 # エラーメッセージの定義
 ERROR_MESSAGES: Dict[str, str] = {
     ErrorCode.INVALID_IMAGE_FORMAT: "無効な画像形式です",
-    ErrorCode.IMAGE_TOO_LARGE: "画像サイズが大きすぎます",
+    ErrorCode.IMAGE_TOO_LARGE: "画像サイズが大きすぎます（500KB以下にしてください）",
     ErrorCode.IMAGE_CORRUPTED: "画像が破損しています",
     ErrorCode.NO_FACE_DETECTED: "画像から顔が検出できませんでした",
     ErrorCode.MULTIPLE_FACES: "画像に複数の顔が検出されました",

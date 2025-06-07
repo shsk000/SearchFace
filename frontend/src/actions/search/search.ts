@@ -1,9 +1,9 @@
 "use server";
 
 import { logger } from "@/lib/logger";
+import { SearchResultError } from "./error";
 import type { SearchSuccessResponse } from "./type";
 import { isErrorResponse, searchSuccessResponseSchema } from "./type";
-import { SearchResultError } from "./error";
 
 const API_BASE_URL = process.env.API_BASE_URL || "http://backend:10000";
 

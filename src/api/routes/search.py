@@ -1,3 +1,4 @@
+import os
 import time
 from fastapi import APIRouter, UploadFile, File
 from typing import List, Dict, Any
@@ -13,7 +14,11 @@ from face import face_utils
 from utils.similarity import calculate_similarity
 from api.models.response import SearchResult, SearchResponse
 
-router = APIRouter(prefix="/api", tags=["search"])
+# 新しいデータベースクラスをインポート（記録用）
+from database.search_database import SearchDatabase
+from database.ranking_database import RankingDatabase
+
+router = APIRouter(tags=["search"])
 logger = logging.getLogger(__name__)
 
 @router.post("/search", response_model=SearchResponse)
@@ -41,8 +46,8 @@ async def search_face(
     if not image.content_type.startswith('image/'):
         raise ImageValidationException(ErrorCode.INVALID_IMAGE_FORMAT)
 
-    # 画像サイズの検証（5MB以下）
-    if image.size > 5 * 1024 * 1024:  # 5MB
+    # 画像サイズの検証（500KB以下）
+    if image.size > 500 * 1024:  # 500KB
         raise ImageValidationException(ErrorCode.IMAGE_TOO_LARGE)
 
     try:
@@ -87,6 +92,43 @@ async def search_face(
             )
 
         processing_time = time.time() - start_time
+
+                # 検索結果がある場合、ランキングデータベースに記録（person_idベース）
+        if search_results and results:
+            search_db = None
+            ranking_db = None
+            try:
+                # データベースインスタンスを関数内で初期化
+                search_db = SearchDatabase()
+                ranking_db = RankingDatabase()
+
+                # 検索履歴を記録（resultsはperson_idを含む元のデータ）
+                session_id = search_db.record_search_results(
+                    search_results=results,  # person_idを含む元のresults
+                    metadata={
+                        'filename': image.filename,
+                        'file_size': image.size,
+                        'processing_time': processing_time
+                    }
+                )
+
+                # 1位結果をランキングに反映
+                winner = results[0]  # person_idを含む元のresults
+                ranking_db.update_ranking(
+                    person_id=winner['person_id']
+                )
+
+                logger.info(f"検索結果記録完了: セッション={session_id}, 1位={winner['name']}")
+
+            except Exception as db_error:
+                # データベースエラーは検索結果の返却をブロックしない
+                logger.error(f"検索結果の記録に失敗（検索は成功）: {str(db_error)}")
+            finally:
+                # 確実にデータベース接続を閉じる
+                if search_db is not None:
+                    search_db.close()
+                if ranking_db is not None:
+                    ranking_db.close()
 
         logger.debug(f"results: {search_results}")
 

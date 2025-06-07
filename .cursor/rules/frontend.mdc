@@ -57,17 +57,79 @@ frontend/
 - コンテナコンポーネントとして実装
 - 例：画像アップロード、検索結果表示など
 
-## 3. サーバーアクション
+## 3. データ通信方針
 
-### 3.1 基本方針
+### 3.1 取得系コンポーネント（React Server Components）
+**基本方針**: 取得系はReact Server Componentを使用し、Next.jsサーバーからPythonサーバーに通信する
+
+- **禁止**: ブラウザから直接Pythonサーバーに通信することは禁止
+- **必須**: React Server ComponentでfetchしてSSRで表示
+- **API URL**: Docker内部ネットワーク（`http://backend:10000`）を使用
+- **キャッシュ**: 必要に応じて`cache: "no-store"`や`revalidate`を設定
+
+#### 実装パターン
+```typescript
+// features/ranking/api.ts
+export async function getRankingData(): Promise<RankingResponse | null> {
+  try {
+    // 環境変数からAPI URLを取得（デプロイ環境とローカル環境で異なる）
+    const API_BASE_URL = process.env.API_BASE_URL || "http://backend:10000";
+    const response = await fetch(`${API_BASE_URL}/api/ranking?limit=5`, {
+      cache: "no-store", // リアルタイムデータの場合
+    });
+    
+    if (!response.ok) {
+      console.error("Failed to fetch ranking data:", response.status);
+      return null;
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching ranking data:", error);
+    return null;
+  }
+}
+
+// features/ranking/SearchRanking.tsx
+export default async function SearchRanking() {
+  const rankingData = await getRankingData();
+  
+  if (!rankingData) {
+    return <ErrorFallback />;
+  }
+  
+  return <RankingDisplay data={rankingData} />;
+}
+```
+
+### 3.2 変更系コンポーネント（Server Actions）
 - データの変更はサーバーアクションで実装
 - クライアントコンポーネントから直接呼び出し
 - エラーハンドリングは統一的な方法で実装
 
+### 3.3 通信方式の使い分け
+
+#### Server Components（取得系）
+- **用途**: データ取得・表示
+- **通信**: Next.jsサーバー ↔ Pythonサーバー
+- **URL**: `http://backend:10000`（Docker内部）
+- **例**: ランキング表示、検索結果表示、プロフィール表示
+
+#### Server Actions（変更系）
+- **用途**: データ変更・操作
+- **通信**: ブラウザ → Next.jsサーバー → Pythonサーバー
+- **URL**: `http://backend:10000`（Docker内部）
+- **例**: 画像アップロード、検索実行、データ更新
+
+#### Client Components
+- **用途**: インタラクティブなUI
+- **制限**: 直接APIアクセス禁止
+- **例**: フォーム操作、ドラッグ&ドロップ、状態管理
+
 ## 4. 環境変数
 
 ### 4.1 必要な環境変数
-- `NEXT_PUBLIC_API_URL`: APIのベースURL
+- `API_BASE_URL`: PythonサーバーのベースURL（Server Component用）
 
 ## 5. パフォーマンス最適化
 

@@ -11,7 +11,7 @@ services:
     volumes:
       - ./data:/app/data
       - ./src:/app/src
-      - ./.env:/app/.env
+      - ./.env:/etc/secrets/.env
     environment:
       - DEBUG=${DEBUG:-false}  # デフォルトはfalse
       - API_HOST=0.0.0.0
@@ -43,4 +43,4 @@ networks:
     ipam:
       driver: default
       config:
-        - subnet: 172.20.0.0/16 
+        - subnet: 172.20.0.0/16

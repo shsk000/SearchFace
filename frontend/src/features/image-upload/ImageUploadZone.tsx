@@ -1,7 +1,7 @@
 "use client";
 
-import { searchImage } from "@/actions/search/search";
 import { getErrorMessage } from "@/actions/search/error";
+import { searchImage } from "@/actions/search/search";
 import { isErrorCode } from "@/actions/search/type";
 import { Button } from "@/components/ui/button";
 import { logger } from "@/lib/logger";
@@ -20,13 +20,65 @@ export function ImageUploadZone({ onSearchComplete }: ImageUploadZoneProps) {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isSearching, setIsSearching] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
   const router = useRouter();
+
+  const validateAndSetFile = (file: File) => {
+    // ファイルサイズチェック（500KB = 500 * 1024 bytes）
+    const maxSizeKB = 500;
+    const maxSizeBytes = maxSizeKB * 1024;
+
+    if (file.size > maxSizeBytes) {
+      toast.error(`ファイルサイズが大きすぎます（${maxSizeKB}KB以下にしてください）`, {
+        closeButton: true,
+      });
+      return false;
+    }
+
+    // ファイル形式チェック
+    if (!file.type.startsWith("image/")) {
+      toast.error("画像ファイルを選択してください", {
+        closeButton: true,
+      });
+      return false;
+    }
+
+    setSelectedImage(file);
+    setPreviewUrl(URL.createObjectURL(file));
+    return true;
+  };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setSelectedImage(file);
-      setPreviewUrl(URL.createObjectURL(file));
+      if (!validateAndSetFile(file)) {
+        // input要素をリセット
+        e.target.value = "";
+      }
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (!isSearching) {
+      setIsDragOver(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragOver(false);
+
+    if (isSearching) return;
+
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      validateAndSetFile(files[0]);
     }
   };
 
@@ -76,12 +128,17 @@ export function ImageUploadZone({ onSearchComplete }: ImageUploadZoneProps) {
         className={`w-full bg-[#1a1a1a] border border-gray-700 p-6 rounded-xl transition-colors duration-200 ${
           isSearching
             ? "border-pink-500 cursor-not-allowed"
-            : "hover:border-pink-500 cursor-pointer"
+            : isDragOver
+              ? "border-pink-400 bg-pink-950/20"
+              : "hover:border-pink-500 cursor-pointer"
         }`}
         onClick={() => !isSearching && document.getElementById("fileInput")?.click()}
         onKeyDown={(e) =>
           e.key === "Enter" && !isSearching && document.getElementById("fileInput")?.click()
         }
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
       >
         <input
           id="fileInput"
@@ -100,8 +157,14 @@ export function ImageUploadZone({ onSearchComplete }: ImageUploadZoneProps) {
           ) : (
             <>
               <div className="text-3xl mb-2">🖼️</div>
-              <div className="text-base text-gray-300 mb-2">画像を選択</div>
-              <div className="text-xs text-gray-500">クリックして選択</div>
+              <div className="text-base text-gray-300 mb-2">
+                {isDragOver ? "ファイルをドロップ" : "画像を選択"}
+              </div>
+              <div className="text-xs text-gray-500">
+                {isDragOver
+                  ? "ここにドロップしてください"
+                  : "クリックまたはドラッグ&ドロップ（500KB以下）"}
+              </div>
             </>
           )}
         </div>

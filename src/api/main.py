@@ -1,7 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from src.api.routes import search
+from src.api.routes import search, ranking
 from src.core.middleware import error_handler_middleware
+import uvicorn
 
 # アプリケーションの作成
 app = FastAPI(
@@ -29,12 +30,13 @@ async def root():
     return {"status": "ok", "message": "SearchFace API is running"}
 
 # ルーティングの登録
-app.include_router(search.router)
+app.include_router(search.router, prefix="/api")
+app.include_router(ranking.router, prefix="/api")
 
 # 起動用関数
 def start(host="0.0.0.0", port=10000):
     """アプリケーションを起動する
-    
+
     Args:
         host (str): ホストアドレス
         port (int): ポート番号
