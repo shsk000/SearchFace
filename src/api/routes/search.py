@@ -18,7 +18,7 @@ from api.models.response import SearchResult, SearchResponse
 from database.search_database import SearchDatabase
 from database.ranking_database import RankingDatabase
 
-router = APIRouter(prefix="/api", tags=["search"])
+router = APIRouter(tags=["search"])
 logger = logging.getLogger(__name__)
 
 @router.post("/search", response_model=SearchResponse)

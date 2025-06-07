@@ -30,8 +30,8 @@ async def root():
     return {"status": "ok", "message": "SearchFace API is running"}
 
 # ルーティングの登録
-app.include_router(search.router)
-app.include_router(ranking.router)
+app.include_router(search.router, prefix="/api")
+app.include_router(ranking.router, prefix="/api")
 
 # 起動用関数
 def start(host="0.0.0.0", port=10000):

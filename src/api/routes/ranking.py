@@ -11,6 +11,9 @@ logger = log_utils.get_logger(__name__)
 @router.get("/ranking", response_model=RankingResponse)
 async def get_ranking(limit: int = 10):
     """女優ランキングを取得"""
+    # limitの上限を10件に制限
+    limit = min(limit, 10)
+    
     ranking_db = None
     try:
         ranking_db = RankingDatabase()

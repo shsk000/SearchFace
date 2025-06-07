@@ -81,37 +81,47 @@ class RankingDatabase:
         Returns:
             List[Dict[str, Any]]: ランキング結果
         """
+        import sqlite3
+        
+        # Tursoからランキングデータを取得
         result = self.conn.execute("""
-            SELECT pr.person_id, p.name, pr.win_count, pr.last_win_timestamp
-            FROM person_ranking pr
-            JOIN persons p ON pr.person_id = p.person_id
-            ORDER BY pr.win_count DESC
+            SELECT person_id, win_count, last_win_timestamp
+            FROM person_ranking
+            ORDER BY win_count DESC
             LIMIT ?
         """, (limit,))
 
+        ranking_data = result.fetchall()
+        
+        # ローカルSQLiteから人物情報を取得
+        local_conn = sqlite3.connect("data/face_database.db")
+        local_cursor = local_conn.cursor()
+        
         results = []
-        for idx, row in enumerate(result.fetchall()):
-            # 人物の代表画像を取得（最新の画像）
-            image_result = self.conn.execute("""
-                SELECT fi.image_path
-                FROM face_images fi
-                WHERE fi.person_id = ?
-                ORDER BY fi.created_at DESC
-                LIMIT 1
-            """, (row[0],))
-
-            image_rows = image_result.fetchall()
-            image_path = image_rows[0][0] if image_rows else None
-
-            results.append({
-                'rank': idx + 1,
-                'person_id': row[0],
-                'name': row[1],
-                'win_count': row[2],
-                'last_win_date': row[3],
-                'image_path': image_path
-            })
-
+        for idx, row in enumerate(ranking_data):
+            person_id = row[0]
+            
+            # 人物名とベース画像パスを取得
+            local_cursor.execute("""
+                SELECT p.name, pp.base_image_path
+                FROM persons p
+                LEFT JOIN person_profiles pp ON p.person_id = pp.person_id
+                WHERE p.person_id = ?
+            """, (person_id,))
+            
+            person_data = local_cursor.fetchone()
+            
+            if person_data:
+                results.append({
+                    'rank': idx + 1,
+                    'person_id': person_id,
+                    'name': person_data[0],
+                    'win_count': row[1],
+                    'last_win_date': row[2],
+                    'image_path': person_data[1]  # ベース画像パス
+                })
+        
+        local_conn.close()
         return results
 
     def get_ranking_stats(self) -> Dict[str, Any]:
@@ -120,6 +130,8 @@ class RankingDatabase:
         Returns:
             Dict[str, Any]: 統計情報
         """
+        import sqlite3
+        
         # 総人物数（ランキングに登録されている）
         result = self.conn.execute("SELECT COUNT(*) FROM person_ranking")
         total_persons = result.fetchall()[0][0]
@@ -130,18 +142,30 @@ class RankingDatabase:
 
         # トップ人物
         result = self.conn.execute("""
-            SELECT pr.person_id, p.name, pr.win_count
-            FROM person_ranking pr
-            JOIN persons p ON pr.person_id = p.person_id
-            ORDER BY pr.win_count DESC
+            SELECT person_id, win_count
+            FROM person_ranking
+            ORDER BY win_count DESC
             LIMIT 1
         """)
         rows = result.fetchall()
-        top_person = {
-            'person_id': rows[0][0],
-            'name': rows[0][1],
-            'win_count': rows[0][2]
-        } if rows else None
+        
+        top_person = None
+        if rows:
+            # ローカルSQLiteから人物名を取得
+            local_conn = sqlite3.connect("data/face_database.db")
+            local_cursor = local_conn.cursor()
+            
+            local_cursor.execute("SELECT name FROM persons WHERE person_id = ?", (rows[0][0],))
+            person_data = local_cursor.fetchone()
+            
+            if person_data:
+                top_person = {
+                    'person_id': rows[0][0],
+                    'name': person_data[0],
+                    'win_count': rows[0][1]
+                }
+            
+            local_conn.close()
 
         return {
             'total_persons': total_persons,

@@ -2,6 +2,7 @@
 
 import { BackgroundImages } from "@/features/background/BackgroundImages";
 import { ImageUploadZone } from "@/features/image-upload/ImageUploadZone";
+import SearchRanking from "@/components/ranking/SearchRanking";
 import { useState } from "react";
 
 export default function Home() {
@@ -10,7 +11,7 @@ export default function Home() {
   return (
     <main className="relative min-h-screen bg-[#111] text-white flex items-center justify-center p-4 overflow-hidden">
       <BackgroundImages />
-      <div className="relative z-10 max-w-3xl w-full mx-auto text-center flex flex-col justify-center items-center">
+      <div className="relative z-10 max-w-4xl w-full mx-auto text-center flex flex-col justify-center items-center">
         <h1 className="text-3xl font-bold mb-2">
           【開発中】
           <br />
@@ -19,6 +20,11 @@ export default function Home() {
         <p className="text-lg mb-6">画像をアップするだけで、そっくりなAV女優が見つかる。</p>
 
         <ImageUploadZone onSearchComplete={() => setHasSearched(true)} />
+
+        {/* ランキング表示 - 検索inputの下部に配置 */}
+        <div className="w-full mt-8">
+          <SearchRanking />
+        </div>
 
         {hasSearched && (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-8">

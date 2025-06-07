@@ -183,3 +183,64 @@ This project follows a structured development approach with task management file
 - **Backend testing**: Use `docker-compose exec backend python [script]`
 - **Code quality**: Use `docker-compose exec frontend npm run check` for linting
 - **Hot reload**: Both frontend and backend support hot reload in development mode
+
+## File Update and Restart Procedures
+
+When updating code files, follow these container restart procedures to ensure changes take effect:
+
+### Frontend File Updates
+```bash
+# After updating frontend files (.tsx, .ts, .js, .css, etc.)
+docker-compose restart frontend
+
+# Alternative: If frontend container stops responding
+docker-compose down
+docker-compose up frontend
+```
+
+### Backend File Updates  
+```bash
+# After updating backend Python files (.py)
+docker-compose restart backend
+
+# For database schema changes or major updates
+docker-compose down
+docker-compose up backend
+```
+
+### Full Stack Updates
+```bash
+# When updating both frontend and backend files
+docker-compose restart
+
+# For major changes or if issues persist
+docker-compose down
+docker-compose up
+```
+
+### Verification Steps After Updates
+1. **Check container status**: `docker-compose ps`
+2. **View logs for errors**: `docker-compose logs -f [service_name]`
+3. **Test API endpoints**: 
+   ```bash
+   # Test backend API
+   curl -X GET "http://0.0.0.0:10000/api/ranking?limit=5"
+   
+   # Test frontend access
+   curl -X GET "http://0.0.0.0:3000"
+   ```
+4. **Frontend accessibility**: Open browser to `http://localhost:3000`
+5. **Backend API docs**: Open browser to `http://localhost:10000/docs`
+
+### Common Issues and Solutions
+- **Frontend hot reload not working**: Restart frontend container
+- **Backend changes not reflected**: Restart backend container  
+- **Database connection issues**: Check environment variables and restart backend
+- **Port conflicts**: Use `docker-compose down` then `docker-compose up`
+- **Build errors**: Check logs with `docker-compose logs [service_name]`
+
+### Important Notes
+- **Frontend**: Uses Next.js with hot reload, but React Server Components require restart
+- **Backend**: Python code changes require container restart to take effect
+- **Database**: Schema changes need backend restart and possibly manual migration
+- **Environment variables**: Changes require full container restart
