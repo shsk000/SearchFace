@@ -37,6 +37,18 @@ class FaceDatabase:
             )
         """)
 
+        # 人物紹介テーブル（ベース画像パス用）
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS person_profiles (
+                profile_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                person_id INTEGER NOT NULL UNIQUE,
+                base_image_path TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                metadata TEXT,
+                FOREIGN KEY (person_id) REFERENCES persons(person_id) ON DELETE CASCADE
+            )
+        """)
+
         # 顔画像情報テーブル
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS face_images (
@@ -64,6 +76,7 @@ class FaceDatabase:
 
         # 検索用インデックス
         self.cursor.execute("CREATE INDEX IF NOT EXISTS idx_persons_name ON persons(name)")
+        self.cursor.execute("CREATE INDEX IF NOT EXISTS idx_person_profiles_person_id ON person_profiles(person_id)")
         self.cursor.execute("CREATE INDEX IF NOT EXISTS idx_face_images_person_id ON face_images(person_id)")
         self.cursor.execute("CREATE INDEX IF NOT EXISTS idx_face_indexes_image_id ON face_indexes(image_id)")
         self.cursor.execute("CREATE INDEX IF NOT EXISTS idx_face_indexes_position ON face_indexes(index_position)")
@@ -172,6 +185,13 @@ class FaceDatabase:
                     (name, json.dumps(metadata) if metadata else None)
                 )
                 person_id = self.cursor.lastrowid
+                
+                # 人物紹介テーブルにベース画像パスを追加
+                base_image_path = f"data/images/base/{name}.jpg"
+                self.cursor.execute(
+                    "INSERT INTO person_profiles (person_id, base_image_path) VALUES (?, ?)",
+                    (person_id, base_image_path)
+                )
 
             try:
                 # 画像情報の追加（UNIQUE制約により重複時はエラー）
@@ -230,12 +250,13 @@ class FaceDatabase:
         # 人物ごとに最良の結果を選択
         person_results = {}
         for distance, index in zip(distances[0], indices[0]):
-            # インデックス情報から画像情報を取得
+            # インデックス情報から画像情報とベース画像パスを取得
             self.cursor.execute("""
-                SELECT fi2.image_id, fi2.person_id, p.name, fi2.image_path, fi2.metadata
+                SELECT fi2.image_id, fi2.person_id, p.name, fi2.image_path, fi2.metadata, pp.base_image_path
                 FROM face_indexes fi
                 JOIN face_images fi2 ON fi.image_id = fi2.image_id
                 JOIN persons p ON fi2.person_id = p.person_id
+                LEFT JOIN person_profiles pp ON p.person_id = pp.person_id
                 WHERE fi.index_position = ?
             """, (int(index),))
             face_data = self.cursor.fetchone()
@@ -244,13 +265,15 @@ class FaceDatabase:
                 person_id = face_data[1]
                 # 同一人物の場合は、最も距離が小さい（類似度が高い）結果を保持
                 if person_id not in person_results or distance < person_results[person_id]['distance']:
-                    person_results[person_id] = {
-                        'person_id': person_id,
-                        'name': face_data[2],
-                        'distance': float(distance),
-                        'image_path': face_data[3],
-                        'metadata': json.loads(face_data[4]) if face_data[4] else None
-                    }
+                    # ベース画像パスが存在する場合のみ結果に含める
+                    if face_data[5]:  # base_image_pathが存在する場合のみ
+                        person_results[person_id] = {
+                            'person_id': person_id,
+                            'name': face_data[2],
+                            'distance': float(distance),
+                            'image_path': face_data[5],  # ベース画像パスのみ返却
+                            'metadata': json.loads(face_data[4]) if face_data[4] else None
+                        }
 
         # 距離でソートして上位top_kを返す
         return sorted(person_results.values(), key=lambda x: x['distance'])[:top_k]
