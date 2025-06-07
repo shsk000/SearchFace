@@ -1,13 +1,9 @@
-"use client";
-
 import { BackgroundImages } from "@/features/background/BackgroundImages";
 import { ImageUploadZone } from "@/features/image-upload/ImageUploadZone";
-import SearchRanking from "@/components/ranking/SearchRanking";
-import { useState } from "react";
+import SearchRanking from "@/features/ranking/SearchRanking";
+import { Suspense } from "react";
 
 export default function Home() {
-  const [hasSearched, setHasSearched] = useState(false);
-
   return (
     <main className="relative min-h-screen bg-[#111] text-white flex items-center justify-center p-4 overflow-hidden">
       <BackgroundImages />
@@ -19,18 +15,20 @@ export default function Home() {
         </h1>
         <p className="text-lg mb-6">画像をアップするだけで、そっくりなAV女優が見つかる。</p>
 
-        <ImageUploadZone onSearchComplete={() => setHasSearched(true)} />
+        <ImageUploadZone />
 
         {/* ランキング表示 - 検索inputの下部に配置 */}
         <div className="w-full mt-8">
-          <SearchRanking />
+          <Suspense
+            fallback={
+              <div className="bg-zinc-900/90 border-zinc-700 backdrop-blur-sm rounded-xl p-6">
+                <p className="text-gray-400 text-center">ランキングを読み込み中...</p>
+              </div>
+            }
+          >
+            <SearchRanking />
+          </Suspense>
         </div>
-
-        {hasSearched && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-8">
-            <p>検索結果</p>
-          </div>
-        )}
 
         <footer className="mt-12 text-sm text-gray-500 relative z-10">
           <p>18歳未満の方のご利用は固くお断りします。</p>

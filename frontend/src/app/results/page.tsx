@@ -9,7 +9,7 @@ import { getAndClearSearchResults } from "@/lib/search-storage";
 import { AlertCircle, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 // アフィリエイト商品の仮データ
 const mockProducts = [
