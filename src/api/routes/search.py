@@ -46,8 +46,8 @@ async def search_face(
     if not image.content_type.startswith('image/'):
         raise ImageValidationException(ErrorCode.INVALID_IMAGE_FORMAT)
 
-    # 画像サイズの検証（5MB以下）
-    if image.size > 5 * 1024 * 1024:  # 5MB
+    # 画像サイズの検証（500KB以下）
+    if image.size > 500 * 1024:  # 500KB
         raise ImageValidationException(ErrorCode.IMAGE_TOO_LARGE)
 
     try:
