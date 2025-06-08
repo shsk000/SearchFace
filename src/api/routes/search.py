@@ -147,7 +147,7 @@ async def search_face(
     finally:
         db.close()
 
-@router.get("/search/session/{session_id}", response_model=SearchSessionResponse)
+@router.get("/search/{session_id}", response_model=SearchSessionResponse)
 async def get_search_session_results(session_id: str):
     """
     検索セッションIDから検索結果を取得する

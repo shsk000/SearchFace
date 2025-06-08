@@ -37,26 +37,8 @@ export const searchSuccessResponseSchema = z.object({
   search_session_id: z.string(),
 });
 
-// セッション結果用のスキーマ
-export const searchSessionResultSchema = z.object({
-  rank: z.number(),
-  person_id: z.number(),
-  name: z.string(),
-  distance: z.number(),
-  image_path: z.string(),
-});
-
-export const searchSessionResponseSchema = z.object({
-  session_id: z.string(),
-  search_timestamp: z.string(),
-  metadata: z.record(z.any()).optional(),
-  results: z.array(searchSessionResultSchema),
-});
-
 export type SearchResult = z.infer<typeof searchResultSchema>;
 export type SearchSuccessResponse = z.infer<typeof searchSuccessResponseSchema>;
-export type SearchSessionResult = z.infer<typeof searchSessionResultSchema>;
-export type SearchSessionResponse = z.infer<typeof searchSessionResponseSchema>;
 
 // 型ガード関数
 export const isErrorCode = (code: unknown): code is ErrorCode =>

@@ -1,4 +1,4 @@
-import type { SearchSessionResponse, SearchSessionResult } from "@/actions/search/type";
+import type { SearchSessionResponse, SearchSessionResult } from "@/lib/types/search-session";
 import { PersonCard } from "@/components/search/PersonCard";
 import { ProductCard } from "@/components/search/ProductCard";
 import { Button } from "@/components/ui/button";
@@ -52,7 +52,7 @@ interface PersonWithRank {
 async function getSearchSessionResults(sessionId: string): Promise<SearchSessionResponse | null> {
   try {
     const API_BASE_URL = process.env.API_BASE_URL || "http://backend:10000";
-    const response = await fetch(`${API_BASE_URL}/api/search/session/${sessionId}`, {
+    const response = await fetch(`${API_BASE_URL}/api/search/${sessionId}`, {
       cache: "no-store",
     });
 
