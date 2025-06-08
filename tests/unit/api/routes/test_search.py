@@ -334,12 +334,16 @@ class TestSearchRoutes:
         assert data["search_session_id"] == ""
 
     @pytest.mark.unit
+    @patch('src.api.routes.search.SearchDatabase')
+    @patch('src.api.routes.search.RankingDatabase')
     @patch('src.api.routes.search.FaceDatabase')
     @patch('src.api.routes.search.face_utils.get_face_encoding_from_array')
     def test_search_face_rgba_image_conversion(
         self,
         mock_face_encoding,
         mock_face_db,
+        mock_ranking_db,
+        mock_search_db,
         client
     ):
         """Test search with RGBA image that gets converted to RGB"""
@@ -351,8 +355,20 @@ class TestSearchRoutes:
         
         mock_face_encoding.return_value = np.random.random(128)
         
+        # Mock database instances
         mock_face_db_instance = MagicMock()
+        mock_search_db_instance = MagicMock()
+        mock_ranking_db_instance = MagicMock()
+        
         mock_face_db.return_value = mock_face_db_instance
+        mock_search_db.return_value = mock_search_db_instance
+        mock_ranking_db.return_value = mock_ranking_db_instance
+        
+        # Ensure close methods are properly mocked to prevent hanging
+        mock_face_db_instance.close = MagicMock()
+        mock_search_db_instance.close = MagicMock()
+        mock_ranking_db_instance.close = MagicMock()
+        
         mock_face_db_instance.search_similar_faces.return_value = [
             {
                 "name": "Test Person 1",
@@ -361,6 +377,9 @@ class TestSearchRoutes:
                 "person_id": 1
             }
         ]
+        
+        # Mock successful database recording
+        mock_search_db_instance.record_search_results.return_value = "test-session-123"
         
         response = client.post(
             "/api/search",
