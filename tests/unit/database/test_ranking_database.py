@@ -117,7 +117,7 @@ class TestRankingDatabase:
         mock_ranking_database.conn.execute.return_value = mock_result
         
         # Mock sqlite3.connect to prevent database file access
-        with patch('src.database.ranking_database.sqlite3.connect') as mock_sqlite:
+        with patch('sqlite3.connect') as mock_sqlite:
             mock_local_conn = MagicMock()
             mock_sqlite.return_value = mock_local_conn
             
@@ -134,7 +134,7 @@ class TestRankingDatabase:
         mock_ranking_database.conn.execute.return_value = mock_result
         
         # Mock sqlite3.connect to prevent database file access
-        with patch('src.database.ranking_database.sqlite3.connect') as mock_sqlite:
+        with patch('sqlite3.connect') as mock_sqlite:
             mock_local_conn = MagicMock()
             mock_sqlite.return_value = mock_local_conn
             
