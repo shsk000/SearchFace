@@ -12,7 +12,7 @@ import logging
 from database.face_database import FaceDatabase
 from face import face_utils
 from utils.similarity import calculate_similarity
-from api.models.response import SearchResult, SearchResponse
+from api.models.response import SearchResult, SearchResponse, SearchSessionResponse, SearchSessionResult
 
 # 新しいデータベースクラスをインポート（記録用）
 from database.search_database import SearchDatabase
@@ -92,8 +92,9 @@ async def search_face(
             )
 
         processing_time = time.time() - start_time
+        session_id = None
 
-                # 検索結果がある場合、ランキングデータベースに記録（person_idベース）
+        # 検索結果がある場合、ランキングデータベースに記録（person_idベース）
         if search_results and results:
             search_db = None
             ranking_db = None
@@ -134,7 +135,8 @@ async def search_face(
 
         return SearchResponse(
             results=search_results,
-            processing_time=processing_time
+            processing_time=processing_time,
+            search_session_id=session_id or ""
         )
 
     except ImageValidationException:
@@ -144,3 +146,54 @@ async def search_face(
         raise ServerException(ErrorCode.INTERNAL_ERROR)
     finally:
         db.close()
+
+@router.get("/search/{session_id}", response_model=SearchSessionResponse)
+async def get_search_session_results(session_id: str):
+    """
+    検索セッションIDから検索結果を取得する
+
+    Args:
+        session_id: 検索セッションID
+
+    Returns:
+        SearchSessionResponse: セッションの検索結果
+
+    Raises:
+        ServerException: セッションが見つからない場合やサーバーエラーが発生した場合
+    """
+    try:
+        search_db = SearchDatabase()
+        session_data = search_db.get_search_session_results(session_id)
+        
+        if not session_data:
+            raise ServerException(ErrorCode.SESSION_NOT_FOUND)
+        
+        # レスポンス形式に変換
+        session_results = []
+        for result in session_data['results']:
+            # 類似度の計算（exponentialがデフォルト）
+            similarity = calculate_similarity({'distance': result['distance']}, method='exponential')
+            
+            session_results.append(
+                SearchSessionResult(
+                    rank=result['rank'],
+                    person_id=result['person_id'],
+                    name=result['name'],
+                    similarity=float(similarity),
+                    distance=result['distance'],
+                    image_path=result['image_path']
+                )
+            )
+        
+        return SearchSessionResponse(
+            session_id=session_data['session_id'],
+            search_timestamp=session_data['search_timestamp'],
+            metadata=session_data['metadata'],
+            results=session_results
+        )
+    
+    except Exception as e:
+        logger.error(f"セッション結果取得でエラーが発生: {str(e)}")
+        raise ServerException(ErrorCode.INTERNAL_ERROR)
+    finally:
+        search_db.close()

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-// エラーコードの定義
+// エラーコードの定義（検索実行用）
 export const errorCodeSchema = z.enum([
   "NO_FACE_DETECTED",
   "MULTIPLE_FACES",
@@ -33,6 +33,7 @@ export const searchResultSchema = z.object({
 export const searchSuccessResponseSchema = z.object({
   results: z.array(searchResultSchema),
   processing_time: z.number(),
+  search_session_id: z.string(),
 });
 
 export type SearchResult = z.infer<typeof searchResultSchema>;

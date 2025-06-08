@@ -55,7 +55,31 @@ frontend/
 - 特定の機能に関連するコンポーネントを配置
 - ビジネスロジックを含む
 - コンテナコンポーネントとして実装
+- **コロケーション**: 関連するすべてのファイルを機能単位でディレクトリに集約
 - 例：画像アップロード、検索結果表示など
+
+#### コロケーション設計思想
+```
+features/
+├── search-results/           # 検索結果表示機能
+│   ├── SearchResultsDisplay.tsx  # メインコンポーネント
+│   ├── api.ts               # API呼び出し関数
+│   ├── types.ts             # 型定義
+│   ├── utils.ts             # ユーティリティ関数
+│   ├── data.ts              # モックデータ・定数
+│   ├── styles.module.css    # スタイル（必要に応じて）
+│   └── index.ts             # エクスポート
+├── image-upload/            # 画像アップロード機能
+│   ├── ImageUploadZone.tsx
+│   ├── types.ts
+│   └── utils.ts
+```
+
+**コロケーションの利点:**
+- 機能に関連するコードがすべて1箇所に集約される
+- 変更時の影響範囲が明確
+- 機能単位でのテストが容易
+- 新しい開発者にとって理解しやすい構造
 
 ## 3. データ通信方針
 
@@ -154,3 +178,85 @@ export default async function SearchRanking() {
 - try-catchによるエラー捕捉
 - エラーバウンダリの活用
 - トースト通知によるフィードバック
+
+## 7. ログ出力方針
+
+### 7.1 基本方針
+**禁止**: `console.log`, `console.error`等の直接使用は禁止
+**必須**: `@/lib/logger`を使用した統一的なログ出力
+
+### 7.2 ログレベル
+- **debug**: 開発時のデバッグ情報
+- **info**: 正常な処理の記録
+- **warn**: 警告レベルの問題
+- **error**: エラー情報
+
+### 7.3 実装パターン
+
+#### 機能単位でのLogger作成
+```typescript
+// features/search-results/api.ts
+import { createLogger } from "@/lib/logger";
+
+const logger = createLogger("SearchResults");
+
+export async function getSearchSessionResults(sessionId: string) {
+  try {
+    logger.info("検索セッション結果を取得開始", { sessionId });
+    
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      logger.error("APIリクエストが失敗", {
+        sessionId,
+        status: response.status,
+        statusText: response.statusText,
+      });
+      return null;
+    }
+    
+    logger.info("検索セッション結果の取得に成功", {
+      sessionId,
+      resultCount: data.results?.length || 0,
+    });
+    
+    return data;
+  } catch (error) {
+    logger.error("処理中にエラーが発生", { sessionId, error });
+    return null;
+  }
+}
+```
+
+#### Server Actions内でのLogger使用
+```typescript
+// actions/search/search.ts
+import { logger } from "@/lib/logger";
+
+export async function searchImage(formData: FormData) {
+  try {
+    logger.info("画像検索を開始", {
+      fileName: image.name,
+      fileSize: image.size,
+    });
+    
+    const result = await fetch(url, options);
+    
+    logger.info("画像検索成功", {
+      resultsCount: data.results?.length,
+      processingTime: data.processing_time,
+    });
+    
+    return result;
+  } catch (error) {
+    logger.error("検索処理中にエラー", { error });
+    throw error;
+  }
+}
+```
+
+### 7.4 ログ出力の統一ルール
+- **構造化ログ**: オブジェクト形式でコンテキスト情報を含める
+- **日本語メッセージ**: ユーザー向けメッセージは日本語で記述
+- **機能単位プレフィックス**: `createLogger("機能名")`で識別
+- **環境別レベル**: 本番環境では`info`以上、開発環境では`debug`以上

@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { logger } from "@/lib/logger";
 import { cn } from "@/lib/utils";
 import { ExternalLink } from "lucide-react";
 
@@ -52,7 +53,11 @@ export function ProductCard({ product, className }: ProductCardProps) {
             className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white border-none"
             onClick={() => {
               // アフィリエイトリンクへの遷移処理
-              console.log(`商品 ${product.id} をクリック`);
+              logger.info("商品がクリックされました", {
+                productId: product.id,
+                productTitle: product.title,
+                price: product.price,
+              });
             }}
           >
             <ExternalLink className="w-3 h-3 mr-1" />

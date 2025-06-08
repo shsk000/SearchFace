@@ -8,13 +8,57 @@ alwaysApply: true
 
 このルールを読んだら「データベース設定を読みました！」と言ってください。
 
+## データベース構成（ハイブリッド構成）
+
+### ローカルSQLite（face_database.db）
+- **用途**: 顔認識コアデータ（高速アクセスが必要）
+- **場所**: `data/face_database.db`
+- **管理対象**: 人物情報、顔画像データ、FAISSインデックス情報
+- **特徴**: 高速読み取り、リアルタイム検索に最適
+
+### Turso（クラウドデータベース）
+- **用途**: アプリケーションデータ（検索履歴、ランキング）
+- **接続**: libsql_experimental（Embedded Replicas方式）
+- **管理対象**: search_history, person_ranking
+- **特徴**: スケーラブル、永続化、複数環境での共有
+
+### 重要な制約事項
+**❌ 禁止**: 異なるデータベース間でのJOIN操作は不可能
+**✅ 必須**: データ取得は以下の2段階で実行
+1. Tursoからメタデータ（person_id等）を取得
+2. ローカルSQLiteから詳細データ（name等）を取得
+
+### 実装パターン
+```python
+# ❌ 不可能：異なるDB間のJOIN
+"""
+SELECT sh.*, p.name 
+FROM search_history sh  -- Turso
+JOIN persons p ON sh.person_id = p.person_id  -- ローカルSQLite
+"""
+
+# ✅ 正解：段階的なデータ取得
+# 1. Tursoから基本データを取得
+turso_data = turso_conn.execute("SELECT person_id FROM search_history WHERE ...")
+
+# 2. ローカルSQLiteから詳細データを取得
+person_ids = [row[0] for row in turso_data]
+sqlite_conn = sqlite3.connect("data/face_database.db")
+person_names = get_person_names(person_ids)  # バッチ取得で効率化
+
+# 3. データをマージ
+results = merge_data(turso_data, person_names)
+```
+
 ## データベース概要
-- データベースファイル: data/face_database.db
-- インデックスファイル: data/face.index
-- ベクトル次元: 128次元（face_recognitionのエンコーディング次元）
+- **FAISSインデックス**: data/face.index
+- **ベクトル次元**: 128次元（face_recognitionのエンコーディング次元）
 
 ## テーブル構造
-### persons（人物情報テーブル）
+
+### ローカルSQLite テーブル（data/face_database.db）
+
+#### persons（人物情報テーブル）
 ```sql
 CREATE TABLE persons (
     person_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -24,7 +68,7 @@ CREATE TABLE persons (
 );
 ```
 
-### face_images（顔画像情報テーブル）
+#### face_images（顔画像情報テーブル）
 ```sql
 CREATE TABLE face_images (
     image_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -37,7 +81,7 @@ CREATE TABLE face_images (
 );
 ```
 
-### face_indexes（FAISSインデックス情報テーブル）
+#### face_indexes（FAISSインデックス情報テーブル）
 ```sql
 CREATE TABLE face_indexes (
     index_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -50,17 +94,56 @@ CREATE TABLE face_indexes (
 ```
 
 ## インデックス
+
+### ローカルSQLite インデックス
 - persons.name: 人物名での検索用
 - face_images.person_id: 人物IDでの検索用
 - face_indexes.image_id: 画像IDでの検索用
 - face_indexes.index_position: インデックス位置での検索用
 - face_images.image_hash: UNIQUE制約（重複チェック用）
 
+### Turso インデックス
+- search_history.person_id: 人物IDでの検索用
+- search_history.search_timestamp: 時系列検索用
+- search_history(search_session_id, result_rank): セッション内ランキング検索用
+- person_ranking.person_id: 人物IDでの検索用
+- person_ranking.win_count DESC: ランキング表示用
+
+### Turso テーブル（クラウドデータベース）
+
+#### search_history（検索履歴テーブル）
+```sql
+CREATE TABLE IF NOT EXISTS search_history (
+    history_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    search_session_id TEXT NOT NULL,
+    result_rank INTEGER NOT NULL,
+    person_id INTEGER NOT NULL,
+    person_name TEXT NOT NULL,
+    distance REAL NOT NULL,
+    image_path TEXT NOT NULL,
+    search_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    metadata TEXT
+);
+```
+
+#### person_ranking（人物ランキングテーブル）
+```sql
+CREATE TABLE IF NOT EXISTS person_ranking (
+    ranking_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    person_id INTEGER NOT NULL UNIQUE,
+    win_count INTEGER DEFAULT 0,
+    last_win_timestamp TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
 ## データ管理ルール
 - 1人につき複数枚の画像を登録可能
 - 同一画像の重複登録は防止（image_hashによる制約）
 - 画像削除時は関連するインデックスも自動的に削除（CASCADE制約）
 - メタデータはJSON形式で保存
+- **重要**: 異なるデータベース間のperson_id参照は外部キー制約なしで管理
 
 ## インデックス管理
 ### FAISSインデックス

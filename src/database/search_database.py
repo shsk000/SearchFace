@@ -1,9 +1,7 @@
 import json
 import os
-import sqlite3
 import uuid
 from typing import List, Dict, Any, Optional
-from datetime import datetime
 from utils import log_utils
 import libsql_experimental as libsql
 
@@ -81,25 +79,49 @@ class SearchDatabase:
         Returns:
             List[Dict[str, Any]]: 検索履歴
         """
+        # Tursoから検索履歴を取得
         if person_id:
             result = self.conn.execute("""
-                SELECT sh.*, p.name
-                FROM search_history sh
-                JOIN persons p ON sh.person_id = p.person_id
-                WHERE sh.person_id = ?
-                ORDER BY sh.search_timestamp DESC
+                SELECT history_id, search_session_id, result_rank, person_id, distance, image_path, search_timestamp, metadata
+                FROM search_history
+                WHERE person_id = ?
+                ORDER BY search_timestamp DESC
                 LIMIT ?
             """, (person_id, limit))
         else:
             result = self.conn.execute("""
-                SELECT sh.*, p.name
-                FROM search_history sh
-                JOIN persons p ON sh.person_id = p.person_id
-                ORDER BY sh.search_timestamp DESC
+                SELECT history_id, search_session_id, result_rank, person_id, distance, image_path, search_timestamp, metadata
+                FROM search_history
+                ORDER BY search_timestamp DESC
                 LIMIT ?
             """, (limit,))
 
         rows = result.fetchall()
+        
+        # 人物IDリストを抽出
+        person_ids = list(set(row[3] for row in rows))  # 重複除去
+        
+        # ローカルSQLiteから人物名を取得
+        import sqlite3
+        import os
+        
+        db_path = os.path.abspath("data/face_database.db")
+        
+        if os.path.exists(db_path) and person_ids:
+            try:
+                local_conn = sqlite3.connect(db_path)
+                local_cursor = local_conn.cursor()
+                placeholders = ",".join("?" * len(person_ids))
+                query = f"SELECT person_id, name FROM persons WHERE person_id IN ({placeholders})"
+                local_cursor.execute(query, person_ids)
+                name_rows = local_cursor.fetchall()
+                person_names = {row[0]: row[1] for row in name_rows}
+                local_conn.close()
+            except Exception as e:
+                logger.error(f"ローカルSQLiteクエリエラー: {str(e)}")
+                person_names = {}
+        else:
+            person_names = {}
 
         return [{
             'history_id': row[0],
@@ -110,7 +132,7 @@ class SearchDatabase:
             'image_path': row[5],
             'search_timestamp': row[6],
             'metadata': json.loads(row[7]) if row[7] else None,
-            'name': row[8]  # persons テーブルからの名前
+            'name': person_names.get(row[3], f"Unknown({row[3]})")
         } for row in rows]
 
     def get_search_sessions(self, limit: int = 20) -> List[Dict[str, Any]]:
@@ -137,23 +159,50 @@ class SearchDatabase:
         for row in result.fetchall():
             session_id = row[0]
 
-            # 各セッションの詳細結果を取得
+            # 各セッションの詳細結果を取得（Tursoから）
             detail_result = self.conn.execute("""
-                SELECT sh.result_rank, sh.person_id, p.name, sh.distance, sh.image_path
-                FROM search_history sh
-                JOIN persons p ON sh.person_id = p.person_id
-                WHERE sh.search_session_id = ?
-                ORDER BY sh.result_rank
+                SELECT result_rank, person_id, distance, image_path
+                FROM search_history
+                WHERE search_session_id = ?
+                ORDER BY result_rank
             """, (session_id,))
 
+            detail_rows = detail_result.fetchall()
+            
+            # 人物IDリストを抽出
+            session_person_ids = [row[1] for row in detail_rows]
+            
+            # ローカルSQLiteから人物名を取得
+            import sqlite3
+            import os
+            
+            db_path = os.path.abspath("data/face_database.db")
+            
+            if os.path.exists(db_path) and session_person_ids:
+                try:
+                    local_conn = sqlite3.connect(db_path)
+                    local_cursor = local_conn.cursor()
+                    placeholders = ",".join("?" * len(session_person_ids))
+                    query = f"SELECT person_id, name FROM persons WHERE person_id IN ({placeholders})"
+                    local_cursor.execute(query, session_person_ids)
+                    name_rows = local_cursor.fetchall()
+                    session_person_names = {row[0]: row[1] for row in name_rows}
+                    local_conn.close()
+                except Exception as e:
+                    logger.error(f"ローカルSQLiteクエリエラー: {str(e)}")
+                    session_person_names = {}
+            else:
+                session_person_names = {}
+
             results = []
-            for result_row in detail_result.fetchall():
+            for result_row in detail_rows:
+                rank, person_id, distance, image_path = result_row
                 results.append({
-                    'rank': result_row[0],
-                    'person_id': result_row[1],
-                    'name': result_row[2],
-                    'distance': result_row[3],
-                    'image_path': result_row[4]
+                    'rank': rank,
+                    'person_id': person_id,
+                    'name': session_person_names.get(person_id, f"Unknown({person_id})"),
+                    'distance': distance,
+                    'image_path': image_path
                 })
 
             sessions.append({
@@ -194,6 +243,95 @@ class SearchDatabase:
             'latest_search_date': latest_search
         }
 
+    def get_search_session_results(self, session_id: str) -> Optional[Dict[str, Any]]:
+        """指定セッションの検索結果を取得
+
+        Args:
+            session_id (str): 検索セッションID
+
+        Returns:
+            Optional[Dict[str, Any]]: 検索セッション結果、存在しない場合はNone
+        """
+        # セッションの基本情報とメタデータを取得
+        session_result = self.conn.execute("""
+            SELECT search_timestamp, metadata
+            FROM search_history
+            WHERE search_session_id = ?
+            LIMIT 1
+        """, (session_id,))
+
+        session_rows = session_result.fetchall()
+        if not session_rows:
+            return None
+
+        session_row = session_rows[0]
+        search_timestamp = session_row[0]
+        metadata = json.loads(session_row[1]) if session_row[1] else {}
+
+        # セッションの全結果を取得（Tursoから）
+        results_query = self.conn.execute("""
+            SELECT result_rank, person_id, distance, image_path
+            FROM search_history
+            WHERE search_session_id = ?
+            ORDER BY result_rank
+        """, (session_id,))
+
+        turso_results = results_query.fetchall()
+        
+        # 人物IDリストを抽出
+        person_ids = [row[1] for row in turso_results]
+        
+        # ローカルSQLiteから人物名を取得
+        import sqlite3
+        import os
+        
+        # 絶対パスでローカルSQLiteに接続
+        db_path = os.path.abspath("data/face_database.db")
+        logger.info(f"ローカルSQLite接続先: {db_path}")
+        
+        if not os.path.exists(db_path):
+            logger.error(f"ローカルSQLiteファイルが見つかりません: {db_path}")
+            person_names = {}
+        else:
+            try:
+                local_conn = sqlite3.connect(db_path)
+                local_cursor = local_conn.cursor()
+                
+                if person_ids:
+                    placeholders = ",".join("?" * len(person_ids))
+                    query = f"SELECT person_id, name FROM persons WHERE person_id IN ({placeholders})"
+                    local_cursor.execute(query, person_ids)
+                    rows = local_cursor.fetchall()
+                    person_names = {row[0]: row[1] for row in rows}
+                else:
+                    person_names = {}
+                    
+                local_conn.close()
+                logger.info(f"人物名を取得しました: {len(person_names)}件")
+                
+            except Exception as e:
+                logger.error(f"ローカルSQLiteクエリエラー: {str(e)}")
+                person_names = {}
+
+        # 結果をマージ
+        results = []
+        for row in turso_results:
+            rank, person_id, distance, image_path = row
+            results.append({
+                'rank': rank,
+                'person_id': person_id,
+                'name': person_names.get(person_id, f"Unknown({person_id})"),
+                'distance': distance,
+                'image_path': image_path
+            })
+
+        return {
+            'session_id': session_id,
+            'search_timestamp': search_timestamp,
+            'metadata': metadata,
+            'results': results
+        }
+
     def get_winner_for_ranking(self, session_id: str) -> Optional[Dict[str, Any]]:
         """指定セッションの1位結果を取得（ランキング更新用）
 
@@ -203,19 +341,40 @@ class SearchDatabase:
         Returns:
             Optional[Dict[str, Any]]: 1位の結果、存在しない場合はNone
         """
+        # Tursoから1位の結果を取得
         result = self.conn.execute("""
-            SELECT sh.person_id, p.name
-            FROM search_history sh
-            JOIN persons p ON sh.person_id = p.person_id
-            WHERE sh.search_session_id = ? AND sh.result_rank = 1
+            SELECT person_id
+            FROM search_history
+            WHERE search_session_id = ? AND result_rank = 1
         """, (session_id,))
 
         rows = result.fetchall()
         if rows:
-            row = rows[0]
+            person_id = rows[0][0]
+            
+            # ローカルSQLiteから人物名を取得
+            import sqlite3
+            import os
+            
+            db_path = os.path.abspath("data/face_database.db")
+            
+            if os.path.exists(db_path):
+                try:
+                    local_conn = sqlite3.connect(db_path)
+                    local_cursor = local_conn.cursor()
+                    local_cursor.execute("SELECT name FROM persons WHERE person_id = ?", (person_id,))
+                    name_row = local_cursor.fetchone()
+                    name = name_row[0] if name_row else f"Unknown({person_id})"
+                    local_conn.close()
+                except Exception as e:
+                    logger.error(f"ローカルSQLiteクエリエラー: {str(e)}")
+                    name = f"Unknown({person_id})"
+            else:
+                name = f"Unknown({person_id})"
+            
             return {
-                'person_id': row[0],
-                'name': row[1]
+                'person_id': person_id,
+                'name': name
             }
         return None
 

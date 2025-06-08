@@ -304,6 +304,26 @@ class FaceDatabase:
             'index_position': row[6]
         } for row in rows]
 
+    def get_person_names(self, person_ids: List[int]) -> Dict[int, str]:
+        """複数の人物IDから名前を取得する
+        
+        Args:
+            person_ids: 人物IDのリスト
+            
+        Returns:
+            Dict[int, str]: person_id -> name のマッピング
+        """
+        if not person_ids:
+            return {}
+            
+        placeholders = ",".join("?" * len(person_ids))
+        query = f"SELECT person_id, name FROM persons WHERE person_id IN ({placeholders})"
+        
+        self.cursor.execute(query, person_ids)
+        rows = self.cursor.fetchall()
+        
+        return {row[0]: row[1] for row in rows}
+
     def close(self):
         """データベース接続を閉じる"""
         self.conn.close()
