@@ -31,7 +31,9 @@ class TestRankingRoutes:
                 'name': 'Test Person 1',
                 'win_count': 10,
                 'search_count': 20,
-                'win_rate': 0.5
+                'win_rate': 0.5,
+                'last_win_date': '2023-01-01T00:00:00',
+                'image_path': '/test/image1.jpg'
             },
             {
                 'rank': 2,
@@ -39,7 +41,9 @@ class TestRankingRoutes:
                 'name': 'Test Person 2',
                 'win_count': 8,
                 'search_count': 15,
-                'win_rate': 0.53
+                'win_rate': 0.53,
+                'last_win_date': '2023-01-02T00:00:00',
+                'image_path': '/test/image2.jpg'
             }
         ]
         mock_ranking_db_instance.get_ranking.return_value = mock_ranking_data
