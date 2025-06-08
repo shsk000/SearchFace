@@ -9,7 +9,7 @@ import { ExternalLink } from "lucide-react";
 interface Product {
   id: number;
   title: string;
-  price: string;
+  // price: string;
   image: string;
 }
 
@@ -43,9 +43,9 @@ export function ProductCard({ product, className }: ProductCardProps) {
             {product.title}
           </h4>
 
-          <div className="flex items-center justify-between">
+          {/* <div className="flex items-center justify-between">
             <span className="text-lg font-bold text-yellow-400">{product.price}</span>
-          </div>
+          </div> */}
 
           {/* 購入ボタン */}
           <Button
@@ -56,7 +56,7 @@ export function ProductCard({ product, className }: ProductCardProps) {
               logger.info("商品がクリックされました", {
                 productId: product.id,
                 productTitle: product.title,
-                price: product.price,
+                // price: product.price,
               });
             }}
           >

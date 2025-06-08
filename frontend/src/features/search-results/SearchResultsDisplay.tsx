@@ -75,7 +75,7 @@ export default async function SearchResultsDisplay({ sessionId }: SearchResultsD
 
         {/* アフィリエイト商品エリア */}
         <div className="mb-8">
-          <h3 className="text-lg font-semibold mb-4 text-center">関連商品</h3>
+          <h3 className="text-lg font-semibold mb-4 text-center">最新商品</h3>
 
           <div className="overflow-x-auto">
             <div className="flex gap-4 pb-4 min-w-max">

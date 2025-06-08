@@ -34,6 +34,6 @@ export interface PersonWithRank {
 export interface Product {
   id: number;
   title: string;
-  price: string;
+  // price: string;
   image: string;
 }
