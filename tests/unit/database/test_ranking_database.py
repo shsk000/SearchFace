@@ -117,7 +117,7 @@ class TestRankingDatabase:
         mock_ranking_database.conn.execute.return_value = mock_result
         
         # Mock os.path.exists to return False for local database
-        with patch('os.path.exists', return_value=False):
+        with patch('src.database.ranking_database.os.path.exists', return_value=False):
             ranking = mock_ranking_database.get_ranking(limit=10)
         
         assert isinstance(ranking, list)
@@ -131,7 +131,7 @@ class TestRankingDatabase:
         mock_ranking_database.conn.execute.return_value = mock_result
         
         # Mock os.path.exists to return False for local database
-        with patch('os.path.exists', return_value=False):
+        with patch('src.database.ranking_database.os.path.exists', return_value=False):
             mock_ranking_database.get_ranking(limit=5)
         
         # Verify that the limit parameter was used in the query
