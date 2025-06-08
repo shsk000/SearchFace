@@ -1,4 +1,7 @@
+import { createLogger } from "@/lib/logger";
 import type { SearchSessionResponse } from "./types";
+
+const logger = createLogger("SearchResults");
 
 /**
  * 検索セッション結果を取得する
@@ -9,19 +12,31 @@ export async function getSearchSessionResults(
   sessionId: string,
 ): Promise<SearchSessionResponse | null> {
   try {
+    logger.info("検索セッション結果を取得開始", { sessionId });
+
     const API_BASE_URL = process.env.API_BASE_URL || "http://backend:10000";
     const response = await fetch(`${API_BASE_URL}/api/search/${sessionId}`, {
       cache: "no-store",
     });
 
     if (!response.ok) {
-      console.error("Failed to fetch session results:", response.status);
+      logger.error("検索セッション結果の取得に失敗", {
+        sessionId,
+        status: response.status,
+        statusText: response.statusText,
+      });
       return null;
     }
 
-    return await response.json();
+    const data = await response.json();
+    logger.info("検索セッション結果の取得に成功", {
+      sessionId,
+      resultCount: data.results?.length || 0,
+    });
+
+    return data;
   } catch (error) {
-    console.error("Error fetching session results:", error);
+    logger.error("検索セッション結果の取得中にエラー", { sessionId, error });
     return null;
   }
 }
