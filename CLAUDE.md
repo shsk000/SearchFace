@@ -50,6 +50,9 @@ docker-compose down
 # Execute commands in backend container
 docker-compose exec backend python src/run_api.py --sync-db
 
+# Run backend tests
+docker-compose exec backend python -m pytest
+
 # Access backend container shell
 docker-compose exec backend bash
 
@@ -65,6 +68,10 @@ docker-compose exec frontend npm run format
 docker-compose exec frontend npm run lint
 docker-compose exec frontend npm run check
 
+# Run frontend tests
+docker-compose exec frontend npm run test
+docker-compose exec frontend npm run test:ui
+
 # Access frontend container shell
 docker-compose exec frontend bash
 
@@ -72,7 +79,7 @@ docker-compose exec frontend bash
 docker-compose exec frontend npm install [package-name]
 ```
 
-### Development Workflow
+### Development Workflow (Updated with Testing)
 ```bash
 # 1. Start development environment
 docker-compose up
@@ -81,13 +88,24 @@ docker-compose up
 # Frontend: Changes auto-reload via npm run dev
 # Backend: Changes auto-reload when DEBUG=true
 
-# 3. Run linting/formatting (in frontend container)
+# 3. Create/Update tests for your changes
+# Backend: Create test files in tests/ directory
+# Frontend: Create test files co-located with source files
+
+# 4. Run tests to ensure they pass
+# Backend tests
+docker-compose exec backend python -m pytest
+
+# Frontend tests
+docker-compose exec frontend npm run test
+
+# 5. Run linting/formatting (frontend only)
 docker-compose exec frontend npm run check
 
-# 4. Build for testing (in frontend container)
+# 6. Build for testing (in frontend container)
 docker-compose exec frontend npm run build
 
-# 5. Test API
+# 7. Test API manually (optional)
 curl -X POST "http://localhost:10000/api/search" \
   -H "accept: application/json" \
   -H "Content-Type: multipart/form-data" \
@@ -133,6 +151,7 @@ npm run check  # For linting/formatting
 ### Key Technologies
 - **Backend**: FastAPI, face_recognition, FAISS, SQLite, Cloudflare R2, uvicorn
 - **Frontend**: Next.js 15, React 19, TypeScript, Tailwind CSS, Radix UI
+- **Testing**: pytest (Backend), vitest + React Testing Library + MSW (Frontend)
 - **Tools**: Biome (formatting/linting), Docker, docker-compose
 
 ## Face Recognition Pipeline
@@ -187,16 +206,43 @@ npm run check  # For linting/formatting
 
 This project follows a structured development approach with task management files in `.cursor/rules/`. The codebase emphasizes:
 - **Docker-first development**: All commands should be run in containers
+- **Test-driven development**: All new features and changes must include tests
 - Clear separation between backend API and frontend UI
 - Comprehensive error handling with user-friendly messages
 - Performance optimization for real-time face search
 - Modular architecture for maintainability
 
+## Testing Guidelines
+
+### Backend Testing (pytest)
+- **Location**: Tests located in `tests/` directory
+- **Structure**: Mirror the `src/` directory structure in `tests/`
+- **Coverage**: Unit tests for all API endpoints, database operations, and utility functions
+- **Fixtures**: Use pytest fixtures for database setup and mock data
+- **Command**: `docker-compose exec backend python -m pytest`
+
+### Frontend Testing (vitest + React Testing Library + MSW)
+- **Location**: Tests co-located with source files (same directory)
+- **Naming**: `*.test.ts` or `*.test.tsx` for test files
+- **Coverage**: API functions, Server Actions, UI Components, Utility functions
+- **Mocking**: Use MSW (Mock Service Worker) for realistic API mocking
+- **Commands**:
+  - `docker-compose exec frontend npm run test` - Run tests
+  - `docker-compose exec frontend npm run test:ui` - Run with UI
+  - `docker-compose exec frontend npm run check` - Lint/format check
+
+### Testing Requirements
+- **All new features**: Must include corresponding tests
+- **Bug fixes**: Must include regression tests
+- **Code changes**: Must ensure existing tests still pass
+- **Coverage**: Aim for comprehensive test coverage of critical paths
+
 ## Docker Container Guidelines
 
 - **Always use docker-compose exec** for running commands inside containers
 - **Frontend builds**: Use `docker-compose exec frontend npm run build`
-- **Backend testing**: Use `docker-compose exec backend python [script]`
+- **Backend testing**: Use `docker-compose exec backend python -m pytest`
+- **Frontend testing**: Use `docker-compose exec frontend npm run test`
 - **Code quality**: Use `docker-compose exec frontend npm run check` for linting
 - **Hot reload**: Both frontend and backend support hot reload in development mode
 
@@ -240,7 +286,18 @@ docker-compose up
 ### Verification Steps After Updates
 1. **Check container status**: `docker-compose ps`
 2. **View logs for errors**: `docker-compose logs -f [service_name]`
-3. **Test API endpoints**:
+3. **Run tests to verify functionality**:
+   ```bash
+   # Backend tests
+   docker-compose exec backend python -m pytest
+   
+   # Frontend tests
+   docker-compose exec frontend npm run test
+   
+   # Frontend linting
+   docker-compose exec frontend npm run check
+   ```
+4. **Test API endpoints**:
    ```bash
    # Test backend API
    curl -X GET "http://0.0.0.0:10000/api/ranking?limit=5"
@@ -248,8 +305,8 @@ docker-compose up
    # Test frontend access
    curl -X GET "http://0.0.0.0:3000"
    ```
-4. **Frontend accessibility**: Open browser to `http://localhost:3000`
-5. **Backend API docs**: Open browser to `http://localhost:10000/docs`
+5. **Frontend accessibility**: Open browser to `http://localhost:3000`
+6. **Backend API docs**: Open browser to `http://localhost:10000/docs`
 
 ### Common Issues and Solutions
 - **Frontend hot reload not working**: Restart frontend container
@@ -263,3 +320,26 @@ docker-compose up
 - **Backend**: Python code changes require container restart to take effect
 - **Database**: Schema changes need backend restart and possibly manual migration
 - **Environment variables**: Changes require full container restart
+
+# CRITICAL TESTING WORKFLOW REQUIREMENTS
+
+**MANDATORY: All code changes must follow this workflow:**
+
+1. **Implementation**: Make the requested code changes
+2. **Test Creation**: Create/update corresponding test files
+   - Backend: `tests/` directory structure mirroring `src/`
+   - Frontend: Co-located `*.test.ts` or `*.test.tsx` files
+3. **Test Execution**: Verify all tests pass
+   - Backend: `docker-compose exec backend python -m pytest`
+   - Frontend: `docker-compose exec frontend npm run test`
+4. **Code Quality**: Ensure lint checks pass (frontend only)
+   - Frontend: `docker-compose exec frontend npm run check`
+5. **Verification**: Confirm no regressions in existing functionality
+
+**NO EXCEPTIONS**: This workflow must be followed for every code change, regardless of size.
+
+# important-instruction-reminders
+Do what has been asked; nothing more, nothing less.
+NEVER create files unless they're absolutely necessary for achieving your goal.
+ALWAYS prefer editing an existing file to creating a new one.
+NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.
