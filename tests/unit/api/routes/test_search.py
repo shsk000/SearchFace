@@ -300,6 +300,11 @@ class TestSearchRoutes:
         mock_search_db.return_value = mock_search_db_instance
         mock_ranking_db.return_value = mock_ranking_db_instance
         
+        # Ensure close methods are properly mocked to prevent hanging
+        mock_face_db_instance.close = MagicMock()
+        mock_search_db_instance.close = MagicMock()
+        mock_ranking_db_instance.close = MagicMock()
+        
         # Mock search results
         mock_face_db_instance.search_similar_faces.return_value = [
             {
