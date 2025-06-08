@@ -116,8 +116,11 @@ class TestRankingDatabase:
         mock_result.fetchall.return_value = []
         mock_ranking_database.conn.execute.return_value = mock_result
         
-        # Mock os.path.exists to return False for local database
-        with patch('src.database.ranking_database.os.path.exists', return_value=False):
+        # Mock sqlite3.connect to prevent database file access
+        with patch('src.database.ranking_database.sqlite3.connect') as mock_sqlite:
+            mock_local_conn = MagicMock()
+            mock_sqlite.return_value = mock_local_conn
+            
             ranking = mock_ranking_database.get_ranking(limit=10)
         
         assert isinstance(ranking, list)
@@ -130,8 +133,11 @@ class TestRankingDatabase:
         mock_result.fetchall.return_value = []
         mock_ranking_database.conn.execute.return_value = mock_result
         
-        # Mock os.path.exists to return False for local database
-        with patch('src.database.ranking_database.os.path.exists', return_value=False):
+        # Mock sqlite3.connect to prevent database file access
+        with patch('src.database.ranking_database.sqlite3.connect') as mock_sqlite:
+            mock_local_conn = MagicMock()
+            mock_sqlite.return_value = mock_local_conn
+            
             mock_ranking_database.get_ranking(limit=5)
         
         # Verify that the limit parameter was used in the query
