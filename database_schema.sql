@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS search_history (
     search_session_id TEXT NOT NULL,
     result_rank INTEGER NOT NULL,
     person_id INTEGER NOT NULL,
+    person_name TEXT NOT NULL,
     distance REAL NOT NULL,
     image_path TEXT NOT NULL,
     search_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
