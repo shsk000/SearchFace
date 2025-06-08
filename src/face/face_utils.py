@@ -1,7 +1,7 @@
 import face_recognition
 import numpy as np
 from typing import List, Tuple, Optional
-from utils import log_utils
+from src.utils import log_utils
 
 # ロガーの設定
 logger = log_utils.get_logger(__name__)

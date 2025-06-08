@@ -4,10 +4,10 @@ import faiss
 import numpy as np
 from typing import List, Dict, Any, Optional, Tuple
 from . import db_utils
-from face import face_utils
-from utils import image_utils
+from src.face import face_utils
+from src.utils import image_utils
 import sqlite3
-from utils import log_utils
+from src.utils import log_utils
 
 # ロギングの設定
 logger = log_utils.get_logger(__name__)

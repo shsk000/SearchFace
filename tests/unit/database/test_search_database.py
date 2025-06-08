@@ -106,7 +106,10 @@ class TestSearchDatabase:
             
             assert session_id == 'empty-session-123'
             # No insert calls should be made for empty results
+            # But commit and sync should still be called
             mock_search_database.conn.execute.assert_not_called()
+            mock_search_database.conn.commit.assert_called_once()
+            assert mock_search_database.conn.sync.call_count >= 1  # Called in __init__ and record_search_results
 
     @pytest.mark.unit
     def test_record_search_results_limit_three(self, mock_search_database):
@@ -172,13 +175,29 @@ class TestSearchDatabase:
         """Test successful search session results retrieval"""
         session_id = 'test-session-123'
         
-        # Mock database query results
-        mock_search_database.conn.execute.return_value = MagicMock()
-        mock_search_database.conn.fetchall.return_value = [
-            ('test-session-123', '2024-01-01 10:00:00', '{"filename": "test.jpg"}', 1, 1, 'Person 1', 0.1, '/path/1.jpg')
+        # Mock the first query for session info
+        mock_session_result = MagicMock()
+        mock_session_result.fetchall.return_value = [
+            ('2024-01-01 10:00:00', '{"filename": "test.jpg"}')  # search_timestamp, metadata
         ]
         
-        result = mock_search_database.get_search_session_results(session_id)
+        # Mock the second query for results
+        mock_results_query = MagicMock()
+        mock_results_query.fetchall.return_value = [
+            (1, 1, 0.1, '/path/1.jpg')  # result_rank, person_id, distance, image_path
+        ]
+        
+        mock_search_database.conn.execute.side_effect = [mock_session_result, mock_results_query]
+        
+        # Mock the local SQLite connection for person name lookup
+        with patch('sqlite3.connect') as mock_sqlite_connect:
+            mock_local_conn = MagicMock()
+            mock_local_cursor = MagicMock()
+            mock_local_cursor.fetchall.return_value = [(1, 'Person 1')]
+            mock_local_conn.cursor.return_value = mock_local_cursor
+            mock_sqlite_connect.return_value = mock_local_conn
+            
+            result = mock_search_database.get_search_session_results(session_id)
         
         assert result is not None
         assert result['session_id'] == session_id
@@ -192,8 +211,9 @@ class TestSearchDatabase:
         session_id = 'non-existent-session'
         
         # Mock empty query result
-        mock_search_database.conn.execute.return_value = MagicMock()
-        mock_search_database.conn.fetchall.return_value = []
+        mock_session_result = MagicMock()
+        mock_session_result.fetchall.return_value = []
+        mock_search_database.conn.execute.return_value = mock_session_result
         
         result = mock_search_database.get_search_session_results(session_id)
         
@@ -213,16 +233,28 @@ class TestSearchDatabase:
     @pytest.mark.unit
     def test_get_search_stats_success(self, mock_search_database):
         """Test successful search statistics retrieval"""
-        # Mock statistics query result
-        mock_search_database.conn.execute.return_value = MagicMock()
-        mock_search_database.conn.fetchone.return_value = (100, 25, 0.45)
+        # Mock statistics query results for multiple calls
+        mock_result1 = MagicMock()
+        mock_result1.fetchall.return_value = [(100,)]  # total_search_sessions
+        
+        mock_result2 = MagicMock()
+        mock_result2.fetchall.return_value = [(250,)]  # total_search_results
+        
+        mock_result3 = MagicMock()
+        mock_result3.fetchall.return_value = [('2024-01-01 10:00:00',)]  # first_search
+        
+        mock_result4 = MagicMock()
+        mock_result4.fetchall.return_value = [('2024-01-01 15:00:00',)]  # latest_search
+        
+        mock_search_database.conn.execute.side_effect = [mock_result1, mock_result2, mock_result3, mock_result4]
         
         stats = mock_search_database.get_search_stats()
         
         assert isinstance(stats, dict)
-        assert 'total_searches' in stats
-        assert 'daily_searches' in stats
-        assert 'avg_processing_time' in stats
+        assert 'total_search_sessions' in stats
+        assert 'total_search_results' in stats
+        assert 'first_search_date' in stats
+        assert 'latest_search_date' in stats
 
     @pytest.mark.unit
     def test_get_search_stats_database_error(self, mock_search_database):
@@ -237,13 +269,22 @@ class TestSearchDatabase:
     def test_get_search_history_success(self, mock_search_database):
         """Test successful search history retrieval"""
         # Mock history query result
-        mock_search_database.conn.execute.return_value = MagicMock()
-        mock_search_database.conn.fetchall.return_value = [
-            ('session-1', '2024-01-01 10:00:00', 1, 'Person 1'),
-            ('session-2', '2024-01-01 11:00:00', 2, 'Person 2')
+        mock_result = MagicMock()
+        mock_result.fetchall.return_value = [
+            (1, 'session-1', 1, 1, 0.1, '/path/1.jpg', '2024-01-01 10:00:00', None),  # history_id, search_session_id, result_rank, person_id, distance, image_path, search_timestamp, metadata
+            (2, 'session-2', 1, 2, 0.2, '/path/2.jpg', '2024-01-01 11:00:00', None)
         ]
+        mock_search_database.conn.execute.return_value = mock_result
         
-        history = mock_search_database.get_search_history(limit=10, person_id=1)
+        # Mock the local SQLite connection for person name lookup
+        with patch('sqlite3.connect') as mock_sqlite_connect:
+            mock_local_conn = MagicMock()
+            mock_local_cursor = MagicMock()
+            mock_local_cursor.fetchall.return_value = [(1, 'Person 1'), (2, 'Person 2')]
+            mock_local_conn.cursor.return_value = mock_local_cursor
+            mock_sqlite_connect.return_value = mock_local_conn
+            
+            history = mock_search_database.get_search_history(limit=10, person_id=1)
         
         assert isinstance(history, list)
         assert len(history) == 2
@@ -251,14 +292,39 @@ class TestSearchDatabase:
     @pytest.mark.unit
     def test_get_search_sessions_success(self, mock_search_database):
         """Test successful search sessions retrieval"""
-        # Mock sessions query result
-        mock_search_database.conn.execute.return_value = MagicMock()
-        mock_search_database.conn.fetchall.return_value = [
-            ('session-1', '2024-01-01 10:00:00', '{"filename": "test1.jpg"}'),
-            ('session-2', '2024-01-01 11:00:00', '{"filename": "test2.jpg"}')
+        # Mock the main sessions query
+        mock_sessions_result = MagicMock()
+        mock_sessions_result.fetchall.return_value = [
+            ('session-1', '2024-01-01 10:00:00', 2),  # search_session_id, search_timestamp, result_count
+            ('session-2', '2024-01-01 11:00:00', 1)
         ]
         
-        sessions = mock_search_database.get_search_sessions(limit=50)
+        # Mock the detail queries for each session
+        mock_detail_result1 = MagicMock()
+        mock_detail_result1.fetchall.return_value = [
+            (1, 1, 0.1, '/path/1.jpg'),  # result_rank, person_id, distance, image_path
+            (2, 2, 0.2, '/path/2.jpg')
+        ]
+        
+        mock_detail_result2 = MagicMock()
+        mock_detail_result2.fetchall.return_value = [
+            (1, 3, 0.15, '/path/3.jpg')
+        ]
+        
+        mock_search_database.conn.execute.side_effect = [mock_sessions_result, mock_detail_result1, mock_detail_result2]
+        
+        # Mock the local SQLite connection for person name lookup
+        with patch('sqlite3.connect') as mock_sqlite_connect:
+            mock_local_conn = MagicMock()
+            mock_local_cursor = MagicMock()
+            mock_local_cursor.fetchall.side_effect = [
+                [(1, 'Person 1'), (2, 'Person 2')],  # For session-1
+                [(3, 'Person 3')]  # For session-2
+            ]
+            mock_local_conn.cursor.return_value = mock_local_cursor
+            mock_sqlite_connect.return_value = mock_local_conn
+            
+            sessions = mock_search_database.get_search_sessions(limit=50)
         
         assert isinstance(sessions, list)
         assert len(sessions) == 2
@@ -266,9 +332,8 @@ class TestSearchDatabase:
     @pytest.mark.unit
     def test_close_connection(self, mock_search_database):
         """Test database connection close"""
-        # Should not raise exception
+        # Should not raise exception (close is a no-op in libsql implementation)
         mock_search_database.close()
-        mock_search_database.conn.close.assert_called_once()
         
         # Second close should also not raise exception
         mock_search_database.close()

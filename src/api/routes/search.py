@@ -9,14 +9,14 @@ from src.core.errors import ErrorCode
 from src.core.exceptions import ImageValidationException, ServerException
 import logging
 
-from database.face_database import FaceDatabase
-from face import face_utils
-from utils.similarity import calculate_similarity
-from api.models.response import SearchResult, SearchResponse, SearchSessionResponse, SearchSessionResult
+from src.database.face_database import FaceDatabase
+from src.face import face_utils
+from src.utils.similarity import calculate_similarity
+from src.api.models.response import SearchResult, SearchResponse, SearchSessionResponse, SearchSessionResult
 
 # 新しいデータベースクラスをインポート（記録用）
-from database.search_database import SearchDatabase
-from database.ranking_database import RankingDatabase
+from src.database.search_database import SearchDatabase
+from src.database.ranking_database import RankingDatabase
 
 router = APIRouter(tags=["search"])
 logger = logging.getLogger(__name__)
@@ -192,6 +192,8 @@ async def get_search_session_results(session_id: str):
             results=session_results
         )
     
+    except ServerException:
+        raise
     except Exception as e:
         logger.error(f"セッション結果取得でエラーが発生: {str(e)}")
         raise ServerException(ErrorCode.INTERNAL_ERROR)

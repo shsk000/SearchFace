@@ -62,6 +62,13 @@ local_settings.py
 db.sqlite3
 db.sqlite3-journal
 
+# Local SQLite databases (not used in production)
+search_history.db
+search_history.db-*
+*.db-wal
+*.db-shm
+*-client_wal_index
+
 # Flask stuff:
 instance/
 .webassets-cache

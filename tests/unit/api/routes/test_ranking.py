@@ -31,7 +31,9 @@ class TestRankingRoutes:
                 'name': 'Test Person 1',
                 'win_count': 10,
                 'search_count': 20,
-                'win_rate': 0.5
+                'win_rate': 0.5,
+                'last_win_date': '2023-01-01T00:00:00',
+                'image_path': '/test/image1.jpg'
             },
             {
                 'rank': 2,
@@ -39,7 +41,9 @@ class TestRankingRoutes:
                 'name': 'Test Person 2',
                 'win_count': 8,
                 'search_count': 15,
-                'win_rate': 0.53
+                'win_rate': 0.53,
+                'last_win_date': '2023-01-02T00:00:00',
+                'image_path': '/test/image2.jpg'
             }
         ]
         mock_ranking_db_instance.get_ranking.return_value = mock_ranking_data
@@ -116,7 +120,12 @@ class TestRankingRoutes:
         mock_ranking_stats = {
             'total_persons': 100,
             'total_wins': 500,
-            'avg_win_rate': 0.25
+            'avg_win_rate': 0.25,
+            'top_person': {
+                'name': 'Top Person',
+                'win_count': 50,
+                'image_path': '/test/top.jpg'
+            }
         }
         mock_ranking_db_instance.get_ranking_stats.return_value = mock_ranking_stats
         
@@ -126,7 +135,11 @@ class TestRankingRoutes:
         mock_search_stats = {
             'total_searches': 2000,
             'daily_searches': 50,
-            'avg_processing_time': 0.45
+            'avg_processing_time': 0.45,
+            'total_search_sessions': 1500,
+            'total_search_results': 8000,
+            'first_search_date': '2023-01-01T00:00:00',
+            'latest_search_date': '2023-12-31T23:59:59'
         }
         mock_search_db_instance.get_search_stats.return_value = mock_search_stats
         
@@ -138,10 +151,12 @@ class TestRankingRoutes:
         # Check combined stats
         assert data["total_persons"] == 100
         assert data["total_wins"] == 500
-        assert data["avg_win_rate"] == 0.25
-        assert data["total_searches"] == 2000
-        assert data["daily_searches"] == 50
-        assert data["avg_processing_time"] == 0.45
+        assert data["top_person"]["name"] == "Top Person"
+        assert data["top_person"]["win_count"] == 50
+        assert data["total_search_sessions"] == 1500
+        assert data["total_search_results"] == 8000
+        assert data["first_search_date"] == "2023-01-01T00:00:00"
+        assert data["latest_search_date"] == "2023-12-31T23:59:59"
         
         # Verify database calls
         mock_ranking_db_instance.get_ranking_stats.assert_called_once()

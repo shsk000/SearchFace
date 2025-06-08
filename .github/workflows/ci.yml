@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+
+jobs:
+  backend-tests:
+    runs-on: ubuntu-latest
+    container: shsk959/face_recognition_base:latest
+    name: Backend Tests
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Python dependencies
+      run: |
+        pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Run backend tests
+      run: |
+        timeout 300 python -m pytest tests/ -v --tb=short --no-cov --timeout=60 --disable-warnings
+      env:
+        PYTHONPATH: /github/workspace/src
+
+  frontend-tests:
+    runs-on: ubuntu-latest
+    name: Frontend Tests & Lint
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+
+    - name: Install frontend dependencies
+      run: |
+        cd frontend
+        npm ci
+
+    - name: Run frontend lint check
+      run: |
+        cd frontend
+        npm run check
+
+    - name: Run frontend tests
+      run: |
+        cd frontend
+        npm run test
+

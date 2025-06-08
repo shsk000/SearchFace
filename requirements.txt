@@ -5,6 +5,8 @@ click==8.1.8
 dotenv==0.9.9
 faiss-cpu==1.8.0.post1
 fastapi==0.104.1
+starlette==0.27.0
+httpx==0.24.1
 google-api-core==2.24.2
 google-api-python-client==2.169.0
 google-auth==2.39.0
@@ -34,4 +36,4 @@ pytest==8.3.3
 pytest-asyncio==0.24.0
 pytest-mock==3.14.0
 pytest-cov==6.0.0
-httpx==0.28.1
+pytest-timeout==2.3.1
