@@ -116,7 +116,9 @@ class TestRankingDatabase:
         mock_result.fetchall.return_value = []
         mock_ranking_database.conn.execute.return_value = mock_result
         
-        ranking = mock_ranking_database.get_ranking(limit=10)
+        # Mock os.path.exists to return False for local database
+        with patch('os.path.exists', return_value=False):
+            ranking = mock_ranking_database.get_ranking(limit=10)
         
         assert isinstance(ranking, list)
         assert len(ranking) == 0
@@ -128,7 +130,9 @@ class TestRankingDatabase:
         mock_result.fetchall.return_value = []
         mock_ranking_database.conn.execute.return_value = mock_result
         
-        mock_ranking_database.get_ranking(limit=5)
+        # Mock os.path.exists to return False for local database
+        with patch('os.path.exists', return_value=False):
+            mock_ranking_database.get_ranking(limit=5)
         
         # Verify that the limit parameter was used in the query
         mock_ranking_database.conn.execute.assert_called()
