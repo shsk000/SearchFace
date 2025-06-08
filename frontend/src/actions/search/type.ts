@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-// エラーコードの定義
+// エラーコードの定義（検索実行用）
 export const errorCodeSchema = z.enum([
   "NO_FACE_DETECTED",
   "MULTIPLE_FACES",
@@ -8,7 +8,6 @@ export const errorCodeSchema = z.enum([
   "SERVER_ERROR",
   "NETWORK_ERROR",
   "UNKNOWN_ERROR",
-  "SESSION_NOT_FOUND",
 ]);
 
 export type ErrorCode = z.infer<typeof errorCodeSchema>;

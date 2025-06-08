@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-// セッション結果用のスキーマ（Server Components用）
+// 検索セッション結果の型定義
 export const searchSessionResultSchema = z.object({
   rank: z.number(),
   person_id: z.number(),
@@ -18,3 +18,21 @@ export const searchSessionResponseSchema = z.object({
 
 export type SearchSessionResult = z.infer<typeof searchSessionResultSchema>;
 export type SearchSessionResponse = z.infer<typeof searchSessionResponseSchema>;
+
+// UI用の型定義
+export interface PersonWithRank {
+  id: number;
+  rank: number;
+  name: string;
+  similarity: number;
+  distance: number;
+  image_path: string;
+}
+
+// アフィリエイト商品の型定義
+export interface Product {
+  id: number;
+  title: string;
+  price: string;
+  image: string;
+}

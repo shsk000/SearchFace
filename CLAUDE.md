@@ -263,9 +263,3 @@ docker-compose up
 - **Backend**: Python code changes require container restart to take effect
 - **Database**: Schema changes need backend restart and possibly manual migration
 - **Environment variables**: Changes require full container restart
-
-# important-instruction-reminders
-Do what has been asked; nothing more, nothing less.
-NEVER create files unless they're absolutely necessary for achieving your goal.
-ALWAYS prefer editing an existing file to creating a new one.
-NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.
