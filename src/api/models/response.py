@@ -19,6 +19,7 @@ class SearchSessionResult(BaseModel):
     rank: int
     person_id: int
     name: str
+    similarity: float
     distance: float
     image_path: str
 

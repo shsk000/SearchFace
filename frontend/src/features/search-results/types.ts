@@ -5,6 +5,7 @@ export const searchSessionResultSchema = z.object({
   rank: z.number(),
   person_id: z.number(),
   name: z.string(),
+  similarity: z.number(),
   distance: z.number(),
   image_path: z.string(),
 });

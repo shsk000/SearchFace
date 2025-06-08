@@ -179,6 +179,7 @@ async def get_search_session_results(session_id: str):
                     rank=result['rank'],
                     person_id=result['person_id'],
                     name=result['name'],
+                    similarity=float(similarity),
                     distance=result['distance'],
                     image_path=result['image_path']
                 )

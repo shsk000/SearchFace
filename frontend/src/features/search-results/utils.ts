@@ -10,8 +10,8 @@ export function formatSearchResults(results: SearchSessionResult[]): PersonWithR
     id: result.person_id,
     rank: result.rank,
     name: result.name,
-    // 類似度を距離から計算（距離が小さいほど類似度が高い）
-    similarity: Math.max(0, Math.round((1 - result.distance) * 100)),
+    // バックエンドで計算済みのsimilarityを％表示用に変換
+    similarity: Math.round(result.similarity * 100),
     distance: result.distance,
     image_path: result.image_path,
   }));
