@@ -9,6 +9,7 @@ export function getErrorMessage(code: ErrorCode): string {
     SERVER_ERROR: "サーバーエラーが発生しました",
     NETWORK_ERROR: "ネットワークエラーが発生しました",
     UNKNOWN_ERROR: "予期せぬエラーが発生しました",
+    SESSION_NOT_FOUND: "検索結果が見つかりません",
   };
   return messages[code];
 }
@@ -23,6 +24,7 @@ export function getErrorType(code: ErrorCode): "error" | "warning" | "info" {
     case "SERVER_ERROR":
     case "NETWORK_ERROR":
     case "UNKNOWN_ERROR":
+    case "SESSION_NOT_FOUND":
       return "error";
     default:
       return "info";

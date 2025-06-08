@@ -1,9 +1,7 @@
 import json
 import os
-import sqlite3
 import uuid
 from typing import List, Dict, Any, Optional
-from datetime import datetime
 from utils import log_utils
 import libsql_experimental as libsql
 
@@ -192,6 +190,57 @@ class SearchDatabase:
             'total_search_results': total_search_results,
             'first_search_date': first_search,
             'latest_search_date': latest_search
+        }
+
+    def get_search_session_results(self, session_id: str) -> Optional[Dict[str, Any]]:
+        """指定セッションの検索結果を取得
+
+        Args:
+            session_id (str): 検索セッションID
+
+        Returns:
+            Optional[Dict[str, Any]]: 検索セッション結果、存在しない場合はNone
+        """
+        # セッションの基本情報とメタデータを取得
+        session_result = self.conn.execute("""
+            SELECT search_timestamp, metadata
+            FROM search_history
+            WHERE search_session_id = ?
+            LIMIT 1
+        """, (session_id,))
+
+        session_rows = session_result.fetchall()
+        if not session_rows:
+            return None
+
+        session_row = session_rows[0]
+        search_timestamp = session_row[0]
+        metadata = json.loads(session_row[1]) if session_row[1] else {}
+
+        # セッションの全結果を取得
+        results_query = self.conn.execute("""
+            SELECT sh.result_rank, sh.person_id, p.name, sh.distance, sh.image_path
+            FROM search_history sh
+            JOIN persons p ON sh.person_id = p.person_id
+            WHERE sh.search_session_id = ?
+            ORDER BY sh.result_rank
+        """, (session_id,))
+
+        results = []
+        for row in results_query.fetchall():
+            results.append({
+                'rank': row[0],
+                'person_id': row[1],
+                'name': row[2],
+                'distance': row[3],
+                'image_path': row[4]
+            })
+
+        return {
+            'session_id': session_id,
+            'search_timestamp': search_timestamp,
+            'metadata': metadata,
+            'results': results
         }
 
     def get_winner_for_ranking(self, session_id: str) -> Optional[Dict[str, Any]]:

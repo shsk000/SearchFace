@@ -1,15 +1,10 @@
-"use client";
-
-import type { SearchResult, SearchSuccessResponse } from "@/actions/search/type";
+import type { SearchSessionResponse, SearchSessionResult } from "@/actions/search/type";
 import { PersonCard } from "@/components/search/PersonCard";
 import { ProductCard } from "@/components/search/ProductCard";
 import { Button } from "@/components/ui/button";
 import { BackgroundImages } from "@/features/background/BackgroundImages";
-import { getAndClearSearchResults } from "@/lib/search-storage";
 import { AlertCircle, ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
 
 // アフィリエイト商品の仮データ
 const mockProducts = [
@@ -45,79 +40,47 @@ const mockProducts = [
   },
 ];
 
-interface PersonWithRank extends SearchResult {
+interface PersonWithRank {
   id: number;
   rank: number;
+  name: string;
+  similarity: number;
+  distance: number;
+  image_path: string;
 }
 
-export default function ResultsPage() {
-  const [searchData, setSearchData] = useState<SearchSuccessResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const _router = useRouter();
-  const hasInitialized = useRef(false);
+async function getSearchSessionResults(sessionId: string): Promise<SearchSessionResponse | null> {
+  try {
+    const API_BASE_URL = process.env.API_BASE_URL || "http://backend:10000";
+    const response = await fetch(`${API_BASE_URL}/api/search/session/${sessionId}`, {
+      cache: "no-store",
+    });
 
-  useEffect(() => {
-    // 既に初期化済みの場合は何もしない（StrictModeの2回目実行対策）
-    if (hasInitialized.current) {
-      return;
+    if (!response.ok) {
+      console.error("Failed to fetch session results:", response.status);
+      return null;
     }
 
-    hasInitialized.current = true;
-
-    try {
-      const results = getAndClearSearchResults();
-
-      if (!results) {
-        setError("検索結果が見つかりません。検索を再度実行してください。");
-        setLoading(false);
-        return;
-      }
-
-      setSearchData(results);
-      setLoading(false);
-    } catch (err) {
-      setError(`検索結果の読み込みに失敗しました: ${err}`);
-      setLoading(false);
-    }
-  }, []); // 空の依存配列に変更
-
-  // 検索結果をランク付きのPersonWithRank形式に変換
-  const formatResults = (results: SearchResult[]): PersonWithRank[] => {
-    return results.slice(0, 3).map((result, index) => ({
-      ...result,
-      id: index + 1,
-      rank: index + 1,
-      // 類似度を距離から計算（距離が小さいほど類似度が高い）
-      similarity: Math.max(0, Math.round((1 - result.distance) * 100)),
-    }));
-  };
-
-  // ローディング状態
-  if (loading) {
-    return (
-      <main className="relative min-h-screen bg-zinc-900 text-white p-4 overflow-hidden">
-        <BackgroundImages />
-        <div className="relative z-10 max-w-7xl mx-auto flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto mb-4" />
-            <p className="text-lg">検索結果を読み込み中...</p>
-          </div>
-        </div>
-      </main>
-    );
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching session results:", error);
+    return null;
   }
+}
 
-  // エラー状態
-  if (error || !searchData) {
+export default async function ResultPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const sessionData = await getSearchSessionResults(id);
+
+  if (!sessionData) {
     return (
       <main className="relative min-h-screen bg-zinc-900 text-white p-4 overflow-hidden">
         <BackgroundImages />
         <div className="relative z-10 max-w-7xl mx-auto flex items-center justify-center min-h-screen">
           <div className="text-center">
             <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-            <h2 className="text-xl font-bold mb-4">エラーが発生しました</h2>
-            <p className="text-gray-400 mb-6">{error}</p>
+            <h2 className="text-xl font-bold mb-4">検索結果が見つかりません</h2>
+            <p className="text-gray-400 mb-6">セッションIDが無効か、結果が期限切れです。</p>
             <Link href="/">
               <Button className="bg-pink-600 hover:bg-pink-700">
                 <ArrowLeft className="w-4 h-4 mr-2" />
@@ -131,7 +94,7 @@ export default function ResultsPage() {
   }
 
   // 検索結果が空の場合
-  if (!searchData.results || searchData.results.length === 0) {
+  if (!sessionData.results || sessionData.results.length === 0) {
     return (
       <main className="relative min-h-screen bg-zinc-900 text-white p-4 overflow-hidden">
         <BackgroundImages />
@@ -151,7 +114,20 @@ export default function ResultsPage() {
     );
   }
 
-  const formattedResults = formatResults(searchData.results);
+  // 検索結果をランク付きのPersonWithRank形式に変換
+  const formatResults = (results: SearchSessionResult[]): PersonWithRank[] => {
+    return results.slice(0, 3).map((result) => ({
+      id: result.person_id,
+      rank: result.rank,
+      name: result.name,
+      // 類似度を距離から計算（距離が小さいほど類似度が高い）
+      similarity: Math.max(0, Math.round((1 - result.distance) * 100)),
+      distance: result.distance,
+      image_path: result.image_path,
+    }));
+  };
+
+  const formattedResults = formatResults(sessionData.results);
 
   return (
     <main className="relative min-h-screen bg-zinc-900 text-white p-4 overflow-hidden">
@@ -169,7 +145,9 @@ export default function ResultsPage() {
           <div className="text-center">
             <h1 className="text-2xl font-bold">検索結果</h1>
             <p className="text-sm text-gray-400">
-              処理時間: {searchData.processing_time.toFixed(2)}秒
+              {sessionData.metadata?.processing_time
+                ? `処理時間: ${sessionData.metadata.processing_time.toFixed(2)}秒`
+                : `セッション: ${sessionData.session_id.slice(0, 8)}...`}
             </p>
           </div>
           <div className="w-24" /> {/* スペーサー */}

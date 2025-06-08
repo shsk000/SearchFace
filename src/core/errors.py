@@ -29,6 +29,9 @@ class ErrorCode(str, Enum):
     SERVER_ERROR = "SERVER_ERROR"
     INTERNAL_ERROR = "INTERNAL_ERROR"
     SERVICE_UNAVAILABLE = "SERVICE_UNAVAILABLE"
+    
+    # 検索セッションエラー
+    SESSION_NOT_FOUND = "SESSION_NOT_FOUND"
 
 # エラーメッセージの定義
 ERROR_MESSAGES: Dict[str, str] = {
@@ -44,7 +47,9 @@ ERROR_MESSAGES: Dict[str, str] = {
     
     ErrorCode.SERVER_ERROR: "サーバーエラーが発生しました",
     ErrorCode.INTERNAL_ERROR: "内部エラーが発生しました",
-    ErrorCode.SERVICE_UNAVAILABLE: "サービスが利用できません"
+    ErrorCode.SERVICE_UNAVAILABLE: "サービスが利用できません",
+    
+    ErrorCode.SESSION_NOT_FOUND: "検索セッションが見つかりません"
 }
 
 def get_error_response(error_code: ErrorCode) -> Dict[str, Any]:
