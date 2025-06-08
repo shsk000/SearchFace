@@ -19,7 +19,7 @@ jobs:
 
     - name: Run backend tests
       run: |
-        python -m pytest tests/ -v --tb=short --no-cov
+        timeout 300 python -m pytest tests/ -v --tb=short --no-cov --timeout=60
       env:
         PYTHONPATH: /github/workspace/src
 
