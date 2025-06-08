@@ -1,6 +1,6 @@
 import sqlite3
 from typing import Dict, Any, List, Optional
-from utils import log_utils
+from src.utils import log_utils
 
 # ロガーの設定
 logger = log_utils.get_logger(__name__)

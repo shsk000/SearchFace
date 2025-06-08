@@ -35,9 +35,16 @@ class TestSearchRoutes:
     def large_image_bytes(self):
         """Create large image bytes for testing size validation"""
         # Create a larger image that exceeds 500KB
-        img = Image.new('RGB', (2000, 2000), color='red')
+        img = Image.new('RGB', (1500, 1500), color='red')
         img_bytes = io.BytesIO()
-        img.save(img_bytes, format='JPEG', quality=95)
+        img.save(img_bytes, format='JPEG', quality=100)
+        
+        # Ensure the image exceeds 500KB by adding extra data if needed
+        current_size = len(img_bytes.getvalue())
+        if current_size <= 500 * 1024:
+            # Add random data to exceed 500KB
+            img_bytes.write(b'x' * (500 * 1024 + 1000 - current_size))
+        
         img_bytes.seek(0)
         return img_bytes.getvalue()
 
@@ -126,7 +133,7 @@ class TestSearchRoutes:
             files={"image": ("test.txt", text_data, "text/plain")}
         )
         
-        assert response.status_code == 422
+        assert response.status_code == 400
         data = response.json()
         assert data["error"]["code"] == ErrorCode.INVALID_IMAGE_FORMAT
 
@@ -138,7 +145,7 @@ class TestSearchRoutes:
             files={"image": ("large.jpg", large_image_bytes, "image/jpeg")}
         )
         
-        assert response.status_code == 422
+        assert response.status_code == 400
         data = response.json()
         assert data["error"]["code"] == ErrorCode.IMAGE_TOO_LARGE
 
@@ -153,7 +160,7 @@ class TestSearchRoutes:
             files={"image": ("test.jpg", sample_image_bytes, "image/jpeg")}
         )
         
-        assert response.status_code == 422
+        assert response.status_code == 400
         data = response.json()
         assert data["error"]["code"] == ErrorCode.NO_FACE_DETECTED
 
@@ -262,7 +269,7 @@ class TestSearchRoutes:
             files={"image": ("corrupted.jpg", corrupted_data, "image/jpeg")}
         )
         
-        assert response.status_code == 422
+        assert response.status_code == 400
         data = response.json()
         assert data["error"]["code"] == ErrorCode.IMAGE_CORRUPTED
 

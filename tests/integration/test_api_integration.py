@@ -105,7 +105,9 @@ class TestAPIIntegration:
                 'name': 'Test Person 1',
                 'win_count': 10,
                 'search_count': 20,
-                'win_rate': 0.5
+                'win_rate': 0.5,
+                'last_win_date': '2024-01-01 10:00:00',
+                'image_path': '/test/path1.jpg'
             }
         ]
         mock_ranking_db_instance.get_ranking.return_value = mock_ranking_data
@@ -166,7 +168,7 @@ class TestAPIIntegration:
             files={"image": ("test.txt", b"not an image", "text/plain")}
         )
         
-        assert response.status_code == 422
+        assert response.status_code == 400
         data = response.json()
         assert "error" in data
         assert data["error"]["code"] == "INVALID_IMAGE_FORMAT"

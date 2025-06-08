@@ -1,7 +1,7 @@
 import hashlib
 from PIL import Image
 import io
-from utils import log_utils
+from src.utils import log_utils
 
 logger = log_utils.get_logger(__name__)
 

@@ -2,7 +2,7 @@ import json
 import os
 import uuid
 from typing import List, Dict, Any, Optional
-from utils import log_utils
+from src.utils import log_utils
 import libsql_experimental as libsql
 
 # ロギングの設定
