@@ -14,8 +14,8 @@ jobs:
 
     - name: Install additional dependencies
       run: |
-        pip install --upgrade fastapi starlette
         pip install -r requirements.txt
+        pip install --upgrade pip
 
     - name: Run backend tests
       run: |
