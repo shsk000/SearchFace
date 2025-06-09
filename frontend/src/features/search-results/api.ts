@@ -16,7 +16,7 @@ export async function getSearchSessionResults(
 
     const API_BASE_URL = process.env.API_BASE_URL || "http://backend:10000";
     const response = await fetch(`${API_BASE_URL}/api/search/${sessionId}`, {
-      cache: "no-store",
+      next: { revalidate: 86400 }, // 1日（24時間）キャッシュ
     });
 
     if (!response.ok) {
