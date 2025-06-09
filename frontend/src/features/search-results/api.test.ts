@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it } from "vitest";
 import { http, HttpResponse } from "msw";
+import { beforeEach, describe, expect, it } from "vitest";
 import { server } from "../../test/mocks/server";
 import { getSearchSessionResults } from "./api";
 
