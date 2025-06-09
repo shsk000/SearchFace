@@ -100,7 +100,9 @@ describe("age-verification", () => {
     });
 
     it("エラーが発生した場合は例外を投げる", async () => {
-      (cookies as vi.MockedFunction<typeof cookies>).mockRejectedValue(new Error("Cookie set error"));
+      (cookies as vi.MockedFunction<typeof cookies>).mockRejectedValue(
+        new Error("Cookie set error"),
+      );
 
       await expect(setAgeVerified()).rejects.toThrow("年齢認証の設定に失敗しました");
     });
@@ -114,7 +116,9 @@ describe("age-verification", () => {
     });
 
     it("エラーが発生した場合は例外を投げる", async () => {
-      (cookies as vi.MockedFunction<typeof cookies>).mockRejectedValue(new Error("Cookie delete error"));
+      (cookies as vi.MockedFunction<typeof cookies>).mockRejectedValue(
+        new Error("Cookie delete error"),
+      );
 
       await expect(clearAgeVerification()).rejects.toThrow("年齢認証のクリアに失敗しました");
     });

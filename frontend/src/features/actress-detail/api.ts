@@ -23,11 +23,13 @@ export async function getActressDetail(personId: number): Promise<ActressDetail>
   try {
     logger.info("女優詳細情報を取得中", { personId });
 
-    const response = await fetch(`http://backend:10000/api/persons/${personId}`, {
+    const API_BASE_URL = process.env.API_BASE_URL || "http://backend:10000";
+    const response = await fetch(`${API_BASE_URL}/api/persons/${personId}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
       },
+      next: { revalidate: 86400 }, // 1日（24時間）キャッシュ
     });
 
     if (!response.ok) {
