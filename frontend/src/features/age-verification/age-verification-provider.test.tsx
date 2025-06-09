@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi, type MockedFunction } from "vitest";
+import { type MockedFunction, beforeEach, describe, expect, it, vi } from "vitest";
 import { AgeVerificationProvider } from "./age-verification-provider";
 
 // Logger is not mocked - let it output naturally
