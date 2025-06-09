@@ -21,6 +21,7 @@ class FaceDatabase:
     def __init__(self):
         """顔データベースの初期化"""
         self.conn = sqlite3.connect(self.DB_PATH)
+        self.conn.row_factory = sqlite3.Row  # Enable dict-style column access
         self.cursor = self.conn.cursor()
         self._create_tables()
         self._load_index()
@@ -323,6 +324,31 @@ class FaceDatabase:
         rows = self.cursor.fetchall()
         
         return {row[0]: row[1] for row in rows}
+
+    def get_person_detail(self, person_id: int) -> Optional[Dict[str, Any]]:
+        """特定の人物の詳細情報を取得する
+        
+        Args:
+            person_id (int): 人物ID
+            
+        Returns:
+            Optional[Dict[str, Any]]: 人物詳細情報、存在しない場合はNone
+        """
+        self.cursor.execute("""
+            SELECT p.person_id, p.name, pp.base_image_path
+            FROM persons p
+            LEFT JOIN person_profiles pp ON p.person_id = pp.person_id
+            WHERE p.person_id = ?
+        """, (person_id,))
+        
+        row = self.cursor.fetchone()
+        if row:
+            return {
+                'person_id': row['person_id'],
+                'name': row['name'],
+                'image_path': row['base_image_path']
+            }
+        return None
 
     def close(self):
         """データベース接続を閉じる"""

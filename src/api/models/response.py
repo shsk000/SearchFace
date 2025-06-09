@@ -29,3 +29,10 @@ class SearchSessionResponse(BaseModel):
     search_timestamp: str
     metadata: Optional[Dict[str, Any]]
     results: List[SearchSessionResult]
+
+class PersonDetailResponse(BaseModel):
+    """人物詳細情報レスポンス"""
+    person_id: int
+    name: str
+    image_path: str
+    search_count: int
