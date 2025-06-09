@@ -45,20 +45,37 @@ export const handlers = [
     });
   }),
 
+  // Person detail API
+  http.get(
+    "http://backend:10000/api/persons/:personId",
+    ({ params }: { params: Record<string, string> }) => {
+      const { personId } = params;
+      return HttpResponse.json({
+        person_id: Number(personId),
+        name: `Test Actress ${personId}`,
+        image_path: `/test-actress-${personId}.jpg`,
+        search_count: 10,
+      });
+    },
+  ),
+
   // Session results API
-  http.get("http://backend:10000/api/search/:sessionId", ({ params }) => {
-    const { sessionId } = params;
-    return HttpResponse.json({
-      session_id: sessionId,
-      results: [
-        {
-          id: 1,
-          name: "Test Person 1",
-          similarity: 0.95,
-          image_url: "/test-image-1.jpg",
-        },
-      ],
-      created_at: "2024-01-01T00:00:00Z",
-    });
-  }),
+  http.get(
+    "http://backend:10000/api/search/:sessionId",
+    ({ params }: { params: Record<string, string> }) => {
+      const { sessionId } = params;
+      return HttpResponse.json({
+        session_id: sessionId,
+        results: [
+          {
+            id: 1,
+            name: "Test Person 1",
+            similarity: 0.95,
+            image_url: "/test-image-1.jpg",
+          },
+        ],
+        created_at: "2024-01-01T00:00:00Z",
+      });
+    },
+  ),
 ];

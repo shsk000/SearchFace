@@ -173,6 +173,30 @@ class RankingDatabase:
             'top_person': top_person
         }
 
+    def get_person_search_count(self, person_id: int) -> int:
+        """特定の人物の検索回数を取得する
+        
+        Args:
+            person_id (int): 人物ID
+            
+        Returns:
+            int: 検索回数（レコードが存在しない場合は0を返す）
+        """
+        try:
+            result = self.conn.execute(
+                "SELECT win_count FROM person_ranking WHERE person_id = ?",
+                (person_id,)
+            )
+            
+            rows = result.fetchall()
+            if rows:
+                return rows[0][0]
+            return 0
+            
+        except Exception as e:
+            logger.error(f"検索回数の取得に失敗: {str(e)}")
+            return 0
+
     def close(self):
         """データベース接続を閉じる"""
         pass  # libsql_clientでは明示的なclose不要
