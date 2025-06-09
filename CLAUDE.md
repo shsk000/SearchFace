@@ -63,7 +63,8 @@ docker build -t searchface:latest .
 ### Frontend Commands (via Docker)
 ```bash
 # Execute frontend commands in container
-docker-compose exec frontend npm run build
+# ⚠️ WARNING: DO NOT run npm run build - it breaks the development environment
+# Frontend uses hot reload with automatic file watching - just save files to see changes
 docker-compose exec frontend npm run format
 docker-compose exec frontend npm run lint
 docker-compose exec frontend npm run check
@@ -102,8 +103,8 @@ docker-compose exec frontend npm run test
 # 5. Run linting/formatting (frontend only)
 docker-compose exec frontend npm run check
 
-# 6. Build for testing (in frontend container)
-docker-compose exec frontend npm run build
+# 6. Frontend verification (NO BUILD NEEDED - uses hot reload)
+# Just save files to see changes automatically
 
 # 7. Test API manually (optional)
 curl -X POST "http://localhost:10000/api/search" \
@@ -337,6 +338,22 @@ docker-compose up
 5. **Verification**: Confirm no regressions in existing functionality
 
 **NO EXCEPTIONS**: This workflow must be followed for every code change, regardless of size.
+
+# Frontend Development Critical Notes
+
+## ⚠️ CRITICAL FRONTEND RULES
+
+**NEVER run `npm run build` in development environment:**
+- Frontend uses hot reload with automatic file watching
+- Running `npm run build` breaks the development environment
+- Simply save files to see changes automatically reflected
+- Only use `npm run test` and `npm run check` for verification
+
+**Development Workflow:**
+1. Save files → Changes auto-reload immediately
+2. Run tests: `docker-compose exec frontend npm run test`
+3. Run linting: `docker-compose exec frontend npm run check`
+4. NO BUILD STEP NEEDED - hot reload handles everything
 
 # important-instruction-reminders
 Do what has been asked; nothing more, nothing less.
