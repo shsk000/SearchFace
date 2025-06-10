@@ -2,6 +2,52 @@ import { BackgroundImages } from "@/features/background/BackgroundImages";
 import { ImageUploadZone } from "@/features/image-upload/ImageUploadZone";
 import SearchRanking from "@/features/ranking/SearchRanking";
 import { Suspense } from "react";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "そっくりAV女優検索 - 妄想が、確信に変わる。",
+  description:
+    "画像をアップするだけで、そっくりなAV女優が見つかる。最新のAI技術を使用した高精度な顔画像検索システム。",
+  keywords: ["AV女優", "顔検索", "そっくり", "AI検索", "画像検索", "類似検索", "アップロード"],
+  openGraph: {
+    title: "そっくりAV女優検索 - 妄想が、確信に変わる。",
+    description:
+      "画像をアップするだけで、そっくりなAV女優が見つかる。最新のAI技術を使用した高精度な顔画像検索システム。",
+    url: "https://www.sokkuri-av.lol",
+    siteName: "そっくりAV女優検索",
+    images: [
+      {
+        url: "/og-image.jpg",
+        width: 1200,
+        height: 630,
+        alt: "そっくりAV女優検索 - 妄想が、確信に変わる。",
+      },
+    ],
+    type: "website",
+    locale: "ja_JP",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "そっくりAV女優検索 - 妄想が、確信に変わる。",
+    description:
+      "画像をアップするだけで、そっくりなAV女優が見つかる。最新のAI技術を使用した高精度な顔画像検索システム。",
+    images: ["/og-image.jpg"],
+  },
+  alternates: {
+    canonical: "https://www.sokkuri-av.lol",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+};
 
 export default function Home() {
   return (
