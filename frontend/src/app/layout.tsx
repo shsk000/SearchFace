@@ -4,6 +4,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { AgeVerificationProvider } from "@/features/age-verification";
 import { isAgeVerified } from "@/lib/age-verification";
+import GoogleAnalytics from "@/features/analytics/google-analytics";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,6 +31,7 @@ export default async function RootLayout({
   return (
     <html lang="ja">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        <GoogleAnalytics />
         <AgeVerificationProvider isAgeVerified={ageVerified}>{children}</AgeVerificationProvider>
         <Toaster />
       </body>
