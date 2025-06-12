@@ -221,39 +221,74 @@ class FaceIndexDatabase:
         Returns:
             List[Dict[str, Any]]: 検索結果のリスト（人物単位で集約）
         """
+        import time
+        start_time = time.time()
+        
         # FAISSで検索（より多くの候補を取得）
+        faiss_start = time.time()
         distances, indices = self.index.search(np.array([query_encoding]), top_k * 3)
+        faiss_time = time.time() - faiss_start
+        logger.debug(f"FAISS検索時間: {faiss_time:.4f}秒")
+        
+        # 有効なインデックス位置のみを抽出
+        valid_indices = [int(idx) for idx in indices[0] if idx >= 0]
+        
+        if not valid_indices:
+            return []
+        
+        # 単一のSQLクエリですべての必要なデータを取得（N+1問題を解決）
+        placeholders = ",".join("?" * len(valid_indices))
+        query = f"""
+            SELECT fi.index_position, fi2.image_id, fi2.person_id, p.name, 
+                   fi2.image_path, fi2.metadata, p.base_image_path
+            FROM face_indexes fi
+            JOIN face_images fi2 ON fi.image_id = fi2.image_id
+            JOIN persons p ON fi2.person_id = p.person_id
+            WHERE fi.index_position IN ({placeholders})
+              AND p.base_image_path IS NOT NULL
+        """
+        
+        sql_start = time.time()
+        self.cursor.execute(query, valid_indices)
+        face_data_list = self.cursor.fetchall()
+        sql_time = time.time() - sql_start
+        logger.debug(f"SQL実行時間: {sql_time:.4f}秒")
+        
+        # インデックス位置をキーとした辞書を作成
+        dict_start = time.time()
+        face_data_dict = {row['index_position']: row for row in face_data_list}
+        dict_time = time.time() - dict_start
+        logger.debug(f"辞書作成時間: {dict_time:.4f}秒")
         
         # 人物ごとに最良の結果を選択
         person_results = {}
         for distance, index in zip(distances[0], indices[0]):
-            # インデックス情報から画像情報とベース画像パスを取得
-            self.cursor.execute("""
-                SELECT fi2.image_id, fi2.person_id, p.name, fi2.image_path, fi2.metadata, pp.base_image_path
-                FROM face_indexes fi
-                JOIN face_images fi2 ON fi.image_id = fi2.image_id
-                JOIN persons p ON fi2.person_id = p.person_id
-                LEFT JOIN person_profiles pp ON p.person_id = pp.person_id
-                WHERE fi.index_position = ?
-            """, (int(index),))
-            face_data = self.cursor.fetchone()
-            
+            if index < 0:  # 無効なインデックスをスキップ
+                continue
+                
+            face_data = face_data_dict.get(int(index))
             if face_data:
                 person_id = face_data['person_id']
                 # 同一人物の場合は、最も距離が小さい（類似度が高い）結果を保持
                 if person_id not in person_results or distance < person_results[person_id]['distance']:
-                    # ベース画像パスが存在する場合のみ結果に含める
-                    if face_data['base_image_path']:  # base_image_pathが存在する場合のみ
-                        person_results[person_id] = {
-                            'person_id': person_id,
-                            'name': face_data['name'],
-                            'distance': float(distance),
-                            'image_path': face_data['base_image_path'],  # ベース画像パスのみ返却
-                            'metadata': json.loads(face_data['metadata']) if face_data['metadata'] else None
-                        }
+                    person_results[person_id] = {
+                        'person_id': person_id,
+                        'name': face_data['name'],
+                        'distance': float(distance),
+                        'image_path': face_data['base_image_path'],  # ベース画像パスのみ返却
+                        'metadata': json.loads(face_data['metadata']) if face_data['metadata'] else None
+                    }
         
         # 距離でソートして上位top_kを返す
-        return sorted(person_results.values(), key=lambda x: x['distance'])[:top_k]
+        sort_start = time.time()
+        results = sorted(person_results.values(), key=lambda x: x['distance'])[:top_k]
+        sort_time = time.time() - sort_start
+        
+        total_time = time.time() - start_time
+        logger.debug(f"ソート時間: {sort_time:.4f}秒")
+        logger.debug(f"search_similar_faces総時間: {total_time:.4f}秒")
+        
+        return results
     
     def get_face_image(self, image_id: int) -> Optional[Dict[str, Any]]:
         """画像IDで顔画像情報を取得

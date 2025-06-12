@@ -153,7 +153,20 @@ class FaceDatabase:
 
     def close(self):
         """データベース接続を閉じる（ファサードメソッド）"""
+        import time
+        close_start = time.time()
+        
         if hasattr(self, 'person_db') and self.person_db:
+            person_close_start = time.time()
             self.person_db.close()
+            person_close_time = time.time() - person_close_start
+            logger.debug(f"PersonDatabase close時間: {person_close_time:.4f}秒")
+            
         if hasattr(self, 'face_index_db') and self.face_index_db:
+            face_close_start = time.time()
             self.face_index_db.close()
+            face_close_time = time.time() - face_close_start
+            logger.debug(f"FaceIndexDatabase close時間: {face_close_time:.4f}秒")
+            
+        total_close_time = time.time() - close_start
+        logger.debug(f"FaceDatabase close総時間: {total_close_time:.4f}秒")
