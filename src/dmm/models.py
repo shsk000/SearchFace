@@ -8,6 +8,7 @@ DMM API関連のデータモデル定義
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 from enum import Enum
+import numpy as np
 
 
 class CollectionStatus(Enum):
@@ -102,6 +103,8 @@ class SavedFaceInfo:
     hash_value: str
     similarity_score: float
     source_url: str
+    face_encoding: Optional[np.ndarray] = None  # 顔エンコーディング（FAISS登録用）
+    image_id: Optional[int] = None  # face_imagesテーブルのimage_id
 
 
 @dataclass

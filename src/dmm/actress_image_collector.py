@@ -6,6 +6,9 @@ DMM APIから商品画像を取得し、顔検出・類似度計算を行って
 """
 
 import time
+import traceback
+import json
+from datetime import datetime
 import numpy as np
 from pathlib import Path
 from typing import Optional, List, Dict, Any
@@ -19,6 +22,7 @@ from .models import (
     FaceExtractionResult, SavedFaceInfo
 )
 from src.database.person_database import PersonDatabase
+from src.database.face_index_database import FaceIndexDatabase
 from src.face import face_utils
 from src.utils import image_utils, similarity, log_utils
 from .image_downloader import DmmImageDownloader
@@ -39,11 +43,20 @@ class DmmActressImageCollector:
         self.config = config or CollectionConfig()
         self.api_client = DmmApiClient()
         self.db = PersonDatabase()
+        self.face_db = FaceIndexDatabase()
         self.downloader = DmmImageDownloader()
         
         # 処理済みディレクトリの管理ファイル
         self.processed_file = Path("data/processed_dmm_directories.json")
         self._processed_dirs: Optional[set] = None
+        
+        # エラーログファイル
+        self.error_log_path = Path("data/dmm_collection_errors.log")
+        self.error_log_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # 画像保存失敗ログファイル
+        self.failed_save_log_path = Path("data/dmm_failed_saves.log")
+        self.failed_save_log_path.parent.mkdir(parents=True, exist_ok=True)
         
         logger.info("DMM女優画像収集クラスを初期化しました")
     
@@ -134,6 +147,16 @@ class DmmActressImageCollector:
         
         except Exception as e:
             logger.error(f"収集中にエラーが発生: {str(e)}")
+            
+            # エラーログファイルに詳細を出力
+            self._log_error_to_file(
+                error_type="collection_error",
+                error_message=str(e),
+                traceback_info=traceback.format_exc(),
+                actress_info=actress_info,
+                person_id=person_id
+            )
+            
             return CollectionResult(
                 status=CollectionStatus.ERROR,
                 actress_name=getattr(actress_info, 'name', f"person_id_{person_id}"),
@@ -296,20 +319,42 @@ class DmmActressImageCollector:
                 )
                 
                 if face_result.is_valid:
+                    # 顔エンコーディングを取得（FaceExtractionResultから）
+                    face_encoding = getattr(face_result, 'face_encoding', None)
+                    
                     saved_info = self._save_face_image(
                         face_result.face_image_data,
                         actress_info.name,
                         face_result.similarity_score,
                         product.primary_image_url,
-                        product.content_id
+                        product.content_id,
+                        face_encoding
                     )
                     
                     if saved_info:
                         saved_faces.append(saved_info)
                         logger.info(f"顔画像保存成功: {saved_info.file_path} (類似度: {face_result.similarity_score:.3f})")
+                    else:
+                        # 画像保存に失敗した場合のログ記録
+                        self._log_failed_save(
+                            actress_info=actress_info,
+                            content_id=product.content_id,
+                            image_url=product.primary_image_url,
+                            similarity_score=face_result.similarity_score,
+                            reason="image_save_failed"
+                        )
                 
             except Exception as e:
                 logger.warning(f"商品画像処理エラー: {product.content_id} - {str(e)}")
+                
+                # 処理エラーの場合もログ記録
+                self._log_failed_save(
+                    actress_info=actress_info,
+                    content_id=product.content_id,
+                    image_url=product.primary_image_url,
+                    reason="processing_error",
+                    error_message=str(e)
+                )
                 continue
         
         return saved_faces
@@ -370,7 +415,6 @@ class DmmActressImageCollector:
             # PIL Image に変換
             pil_image = Image.open(BytesIO(image_data))
             image_array = np.array(pil_image)
-            original_width = image_array.shape[1]  # 元の画像幅を保存
             
             # face_recognitionライブラリはRGB uint8画像を期待するため、形状とデータ型を確認
             if len(image_array.shape) == 2:
@@ -422,7 +466,6 @@ class DmmActressImageCollector:
                 try:
                     pil_image_rgb = pil_image.convert('RGB')
                     image_array = np.array(pil_image_rgb)
-                    original_width = image_array.shape[1]  # 元の画像幅を再保存
                     
                     # C連続配列に変換
                     image_array = np.ascontiguousarray(image_array, dtype=np.uint8)
@@ -433,6 +476,20 @@ class DmmActressImageCollector:
                     
                 except Exception as retry_error:
                     logger.error(f"PIL RGB変換による修復も失敗: {str(retry_error)}")
+                    
+                    # エラーログファイルに詳細を出力
+                    self._log_error_to_file(
+                        error_type="face_detection_error",
+                        error_message=f"顔検出エラー: {str(face_detection_error)}",
+                        traceback_info=traceback.format_exc(),
+                        actress_name=actress_name,
+                        product_id=product_id,
+                        additional_info={
+                            "image_url": image_url,
+                            "retry_error": str(retry_error)
+                        }
+                    )
+                    
                     return FaceExtractionResult(
                         success=False,
                         face_image_data=None,
@@ -505,13 +562,18 @@ class DmmActressImageCollector:
                 
                 best_similarity = selected_face['similarity']
                 best_face_data = face_bytes.getvalue()
+                best_face_encoding = selected_face['encoding']  # 顔エンコーディングを保存
             
             if best_face_data:
-                return FaceExtractionResult(
+                # FaceExtractionResultにface_encodingを追加
+                result = FaceExtractionResult(
                     success=True,
                     face_image_data=best_face_data,
                     similarity_score=best_similarity
                 )
+                # 動的に属性を追加（FaceExtractionResultモデルを変更せずに済む）
+                result.face_encoding = best_face_encoding
+                return result
             else:
                 return FaceExtractionResult(
                     success=False,
@@ -530,7 +592,8 @@ class DmmActressImageCollector:
             )
     
     def _save_face_image(self, face_data: bytes, actress_name: str, 
-                        similarity_score: float, source_url: str, content_id: str) -> Optional[SavedFaceInfo]:
+                        similarity_score: float, source_url: str, content_id: str,
+                        face_encoding: Optional[np.ndarray] = None) -> Optional[SavedFaceInfo]:
         """顔画像を保存
         
         Args:
@@ -539,6 +602,7 @@ class DmmActressImageCollector:
             similarity_score (float): 類似度スコア
             source_url (str): 元画像URL
             content_id (str): 商品ID
+            face_encoding (Optional[np.ndarray]): 顔エンコーディング
             
         Returns:
             Optional[SavedFaceInfo]: 保存情報
@@ -572,15 +636,80 @@ class DmmActressImageCollector:
             # ファイル名変更
             temp_path.rename(final_path)
             
+            # FAISSデータベースに登録
+            image_id = None
+            if face_encoding is not None:
+                try:
+                    # 女優のperson_idを取得
+                    person = self.db.get_person_by_name(actress_name)
+                    if person:
+                        person_id = person['person_id']
+                        
+                        # メタデータ作成
+                        metadata = {
+                            "source": "dmm_api",
+                            "content_id": content_id,
+                            "similarity_score": similarity_score,
+                            "source_url": source_url,
+                            "collection_date": time.time()
+                        }
+                        
+                        # face_imagesテーブルとFAISSインデックスに追加
+                        image_id = self.face_db.add_face_image(
+                            person_id=person_id,
+                            image_path=str(final_path),
+                            encoding=face_encoding,
+                            image_hash=hash_value,
+                            metadata=metadata
+                        )
+                        
+                        logger.info(f"FAISS登録成功: image_id={image_id}, person_id={person_id}")
+                    else:
+                        logger.warning(f"女優が見つかりません: {actress_name}")
+                        
+                except Exception as faiss_error:
+                    logger.error(f"FAISS登録エラー: {str(faiss_error)}")
+                    
+                    # エラーログファイルに詳細を出力
+                    self._log_error_to_file(
+                        error_type="faiss_registration_error",
+                        error_message=f"FAISS登録エラー: {str(faiss_error)}",
+                        traceback_info=traceback.format_exc(),
+                        actress_name=actress_name,
+                        additional_info={
+                            "content_id": content_id,
+                            "file_path": str(final_path),
+                            "hash_value": hash_value
+                        }
+                    )
+                    # FAISS登録に失敗してもファイル保存は成功として扱う
+            else:
+                logger.warning("顔エンコーディングが無いためFAISS登録をスキップ")
+            
             return SavedFaceInfo(
                 file_path=str(final_path),
                 hash_value=hash_value,
                 similarity_score=similarity_score,
-                source_url=source_url
+                source_url=source_url,
+                face_encoding=face_encoding,
+                image_id=image_id
             )
         
         except Exception as e:
             logger.error(f"画像保存エラー: {str(e)}")
+            
+            # エラーログファイルに詳細を出力
+            self._log_error_to_file(
+                error_type="image_save_error",
+                error_message=f"画像保存エラー: {str(e)}",
+                traceback_info=traceback.format_exc(),
+                actress_name=actress_name,
+                additional_info={
+                    "content_id": content_id,
+                    "source_url": source_url
+                }
+            )
+            
             return None
     
     def get_collection_stats(self) -> Dict[str, Any]:
@@ -660,7 +789,111 @@ class DmmActressImageCollector:
         except Exception as e:
             logger.error(f"商品画像保存エラー: {str(e)}")
     
+    def _log_error_to_file(self, error_type: str, error_message: str, traceback_info: str,
+                          actress_info: Optional[ActressInfo] = None, person_id: Optional[int] = None,
+                          actress_name: Optional[str] = None, product_id: Optional[str] = None,
+                          additional_info: Optional[Dict] = None):
+        """エラー情報をファイルに記録
+        
+        Args:
+            error_type (str): エラータイプ
+            error_message (str): エラーメッセージ
+            traceback_info (str): トレースバック情報
+            actress_info (Optional[ActressInfo]): 女優情報
+            person_id (Optional[int]): 人物ID
+            actress_name (Optional[str]): 女優名
+            product_id (Optional[str]): 商品ID
+            additional_info (Optional[Dict]): 追加情報
+        """
+        try:
+            # エラー情報をまとめる
+            error_record = {
+                "timestamp": datetime.now().isoformat(),
+                "error_type": error_type,
+                "error_message": error_message,
+                "actress_info": {
+                    "person_id": None,
+                    "name": None,
+                    "dmm_actress_id": None
+                },
+                "additional_info": additional_info or {},
+                "traceback": traceback_info
+            }
+            
+            # 女優情報を設定
+            if actress_info:
+                error_record["actress_info"]["person_id"] = actress_info.person_id
+                error_record["actress_info"]["name"] = actress_info.name
+                error_record["actress_info"]["dmm_actress_id"] = actress_info.dmm_actress_id
+            elif person_id:
+                error_record["actress_info"]["person_id"] = person_id
+                if actress_name:
+                    error_record["actress_info"]["name"] = actress_name
+            elif actress_name:
+                error_record["actress_info"]["name"] = actress_name
+            
+            # 商品IDがある場合は追加情報に含める
+            if product_id:
+                error_record["additional_info"]["product_id"] = product_id
+            
+            # ファイルに書き込み
+            with open(self.error_log_path, 'a', encoding='utf-8') as f:
+                f.write(json.dumps(error_record, ensure_ascii=False, indent=2))
+                f.write('\n' + '='*80 + '\n')
+                
+            logger.debug(f"エラーログを記録: {self.error_log_path}")
+            
+        except Exception as log_error:
+            logger.error(f"エラーログの記録に失敗: {str(log_error)}")
+    
+    def _log_failed_save(self, actress_info: ActressInfo, content_id: str, image_url: str,
+                        reason: str, similarity_score: Optional[float] = None,
+                        error_message: Optional[str] = None):
+        """画像保存失敗情報をファイルに記録
+        
+        Args:
+            actress_info (ActressInfo): 女優情報
+            content_id (str): 商品ID
+            image_url (str): 画像URL
+            reason (str): 失敗理由
+            similarity_score (Optional[float]): 類似度スコア
+            error_message (Optional[str]): エラーメッセージ
+        """
+        try:
+            # 保存失敗情報をまとめる
+            failed_record = {
+                "timestamp": datetime.now().isoformat(),
+                "reason": reason,
+                "actress_info": {
+                    "person_id": actress_info.person_id,
+                    "name": actress_info.name,
+                    "dmm_actress_id": actress_info.dmm_actress_id
+                },
+                "product_info": {
+                    "content_id": content_id,
+                    "image_url": image_url
+                }
+            }
+            
+            # オプション情報を追加
+            if similarity_score is not None:
+                failed_record["similarity_score"] = similarity_score
+            
+            if error_message:
+                failed_record["error_message"] = error_message
+            
+            # ファイルに書き込み
+            with open(self.failed_save_log_path, 'a', encoding='utf-8') as f:
+                f.write(json.dumps(failed_record, ensure_ascii=False, indent=2))
+                f.write('\n' + '-'*50 + '\n')
+                
+            logger.debug(f"保存失敗ログを記録: {self.failed_save_log_path}")
+            
+        except Exception as log_error:
+            logger.error(f"保存失敗ログの記録に失敗: {str(log_error)}")
+    
     def close(self):
         """リソースを閉じる"""
         self.db.close()
+        self.face_db.close()
         logger.info("DMM女優画像収集クラスを終了しました")
