@@ -38,17 +38,18 @@ class PersonDatabase:
             CREATE TABLE IF NOT EXISTS persons (
                 person_id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
+                dmm_actress_id INTEGER UNIQUE,
+                base_image_path TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 metadata TEXT
             )
         """)
         
-        # 人物紹介テーブル（ベース画像パス用）
+        # 人物紹介テーブル（DMM女優IDとベース画像パスをpersonsに移行したため簡素化）
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS person_profiles (
                 profile_id INTEGER PRIMARY KEY AUTOINCREMENT,
                 person_id INTEGER NOT NULL UNIQUE,
-                base_image_path TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 metadata TEXT,
                 FOREIGN KEY (person_id) REFERENCES persons(person_id) ON DELETE CASCADE
@@ -57,6 +58,7 @@ class PersonDatabase:
         
         # 検索用インデックス
         self.cursor.execute("CREATE INDEX IF NOT EXISTS idx_persons_name ON persons(name)")
+        self.cursor.execute("CREATE INDEX IF NOT EXISTS idx_persons_dmm_actress_id ON persons(dmm_actress_id)")
         self.cursor.execute("CREATE INDEX IF NOT EXISTS idx_person_profiles_person_id ON person_profiles(person_id)")
         
         self.conn.commit()
@@ -154,12 +156,11 @@ class PersonDatabase:
         
         return {row['person_id']: row['name'] for row in rows}
     
-    def create_person_profile(self, person_id: int, base_image_path: str, metadata: Optional[Dict] = None) -> int:
+    def create_person_profile(self, person_id: int, metadata: Optional[Dict] = None) -> int:
         """人物プロフィールを作成
         
         Args:
             person_id (int): 人物ID
-            base_image_path (str): ベース画像のパス
             metadata (Optional[Dict]): メタデータ
             
         Returns:
@@ -167,8 +168,8 @@ class PersonDatabase:
         """
         try:
             self.cursor.execute(
-                "INSERT INTO person_profiles (person_id, base_image_path, metadata) VALUES (?, ?, ?)",
-                (person_id, base_image_path, json.dumps(metadata) if metadata else None)
+                "INSERT INTO person_profiles (person_id, metadata) VALUES (?, ?)",
+                (person_id, json.dumps(metadata) if metadata else None)
             )
             profile_id = self.cursor.lastrowid
             self.conn.commit()
@@ -190,7 +191,7 @@ class PersonDatabase:
             Optional[Dict[str, Any]]: プロフィール情報、存在しない場合はNone
         """
         self.cursor.execute(
-            "SELECT profile_id, person_id, base_image_path, created_at, metadata FROM person_profiles WHERE person_id = ?",
+            "SELECT profile_id, person_id, created_at, metadata FROM person_profiles WHERE person_id = ?",
             (person_id,)
         )
         row = self.cursor.fetchone()
@@ -199,7 +200,6 @@ class PersonDatabase:
             return {
                 'profile_id': row['profile_id'],
                 'person_id': row['person_id'],
-                'base_image_path': row['base_image_path'],
                 'created_at': row['created_at'],
                 'metadata': json.loads(row['metadata']) if row['metadata'] else None
             }
@@ -215,9 +215,8 @@ class PersonDatabase:
             Optional[Dict[str, Any]]: 人物詳細情報、存在しない場合はNone
         """
         self.cursor.execute("""
-            SELECT p.person_id, p.name, pp.base_image_path
+            SELECT p.person_id, p.name, p.base_image_path, p.dmm_actress_id
             FROM persons p
-            LEFT JOIN person_profiles pp ON p.person_id = pp.person_id
             WHERE p.person_id = ?
         """, (person_id,))
         
@@ -226,7 +225,8 @@ class PersonDatabase:
             return {
                 'person_id': row['person_id'],
                 'name': row['name'],
-                'image_path': row['base_image_path']
+                'image_path': row['base_image_path'],
+                'dmm_actress_id': row['dmm_actress_id']
             }
         return None
     
@@ -248,9 +248,8 @@ class PersonDatabase:
         # 新規作成
         person_id = self.create_person(name, metadata)
         
-        # プロフィールも作成（ベース画像パス）
-        base_image_path = f"data/images/base/{name}.jpg"
-        self.create_person_profile(person_id, base_image_path)
+        # プロフィールも作成
+        self.create_person_profile(person_id)
         
         return person_id
     
@@ -326,19 +325,19 @@ class PersonDatabase:
             List[Dict[str, Any]]: 人物情報のリスト
         """
         self.cursor.execute("""
-            SELECT p.person_id, p.name, p.created_at, p.metadata, pp.base_image_path
-            FROM persons p
-            LEFT JOIN person_profiles pp ON p.person_id = pp.person_id
-            ORDER BY p.person_id
+            SELECT person_id, name, dmm_actress_id, base_image_path, created_at, metadata
+            FROM persons
+            ORDER BY person_id
         """)
         rows = self.cursor.fetchall()
         
         return [{
             'person_id': row['person_id'],
             'name': row['name'],
+            'dmm_actress_id': row['dmm_actress_id'],
+            'base_image_path': row['base_image_path'],
             'created_at': row['created_at'],
-            'metadata': json.loads(row['metadata']) if row['metadata'] else None,
-            'base_image_path': row['base_image_path']
+            'metadata': json.loads(row['metadata']) if row['metadata'] else None
         } for row in rows]
     
     def close(self):
