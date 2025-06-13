@@ -55,7 +55,10 @@ class DMMActressDataSaver:
             'total_processed': 0,
             'saved': 0,
             'skipped': 0,
-            'errors': 0
+            'errors': 0,
+            'profiles_created': 0,
+            'profiles_updated': 0,
+            'profile_errors': 0
         }
 
         # 環境変数チェック
@@ -82,7 +85,7 @@ class DMMActressDataSaver:
         params = {
             'api_id': self.api_id,
             'affiliate_id': self.affiliate_id,
-            'gte_birthday': '2000-01-01',
+            # 'gte_birthday': '2000-01-01',
             # 'lte_birthday': '2000-12-31',
             'hits': 100,  # テスト用に少なく
             'offset': offset,
@@ -175,8 +178,12 @@ class DMMActressDataSaver:
                 metadata=metadata
             )
 
+            # プロフィールデータを保存
+            self._save_profile_data(person_id, actress)
+
             logger.info(f"女優データ保存完了: {name} (DMM ID: {dmm_actress_id}, Person ID: {person_id})")
             self.stats['saved'] += 1
+            
             return person_id
 
         except Exception as e:
@@ -277,7 +284,8 @@ class DMMActressDataSaver:
                 logger.info(f"進捗: {self.stats['total_processed']}/{total_count} "
                            f"(保存: {self.stats['saved']}, "
                            f"スキップ: {self.stats['skipped']}, "
-                           f"エラー: {self.stats['errors']})")
+                           f"エラー: {self.stats['errors']}, "
+                           f"プロフィール: {self.stats['profiles_created']+self.stats['profiles_updated']})")
 
                 # 次のページへ
                 offset += result_count
@@ -296,6 +304,9 @@ class DMMActressDataSaver:
         logger.info(f"保存: {self.stats['saved']}")
         logger.info(f"スキップ: {self.stats['skipped']}")
         logger.info(f"エラー: {self.stats['errors']}")
+        logger.info(f"プロフィール作成: {self.stats['profiles_created']}")
+        logger.info(f"プロフィール更新: {self.stats['profiles_updated']}")
+        logger.info(f"プロフィールエラー: {self.stats['profile_errors']}")
 
         # エラーログファイルの確認
         error_log_path = Path('actress_save_errors.log')
@@ -303,6 +314,163 @@ class DMMActressDataSaver:
             logger.info(f"詳細なエラー情報は {error_log_path} を確認してください")
 
         logger.info("=" * 50)
+
+    def _parse_dmm_profile_data(self, actress: Dict) -> Dict:
+        """DMM APIレスポンスからプロフィールデータを抽出・構造化
+        
+        Args:
+            actress (Dict): DMM APIからの女優データ
+            
+        Returns:
+            Dict: 構造化されたプロフィールデータ
+        """
+        # 個別カラム用のデータ構造
+        profile_data = {
+            # 基本情報
+            'ruby': self._safe_strip(actress.get('ruby')),
+            'birthday': self._safe_strip(actress.get('birthday')),
+            'blood_type': self._safe_strip(actress.get('blood_type')),
+            'hobby': self._safe_strip(actress.get('hobby')),
+            'prefectures': self._safe_strip(actress.get('prefectures')),
+            
+            # 身体情報
+            'height': self._parse_numeric_value(actress.get('height')),
+            'bust': self._parse_numeric_value(actress.get('bust')),
+            'waist': self._parse_numeric_value(actress.get('waist')),
+            'hip': self._parse_numeric_value(actress.get('hip')),
+            'cup': self._safe_strip(actress.get('cup')),
+            
+            # 画像URL
+            'image_small_url': self._safe_strip(actress.get('imageURL', {}).get('small')),
+            'image_large_url': self._safe_strip(actress.get('imageURL', {}).get('large')),
+            
+            # DMM情報（カテゴリ別）
+            'dmm_list_url_digital': self._safe_strip(actress.get('listURL', {}).get('digital')),
+            'dmm_list_url_monthly_premium': self._safe_strip(actress.get('listURL', {}).get('monthly_premium')),
+            'dmm_list_url_mono': self._safe_strip(actress.get('listURL', {}).get('mono')),
+            
+            # 追加メタデータ（参考のため残す）
+            'metadata': json.dumps({
+                'dmm_source': {
+                    'actress_id': actress.get('id'),
+                    'last_updated': time.strftime('%Y-%m-%d %H:%M:%S')
+                }
+            })
+        }
+        
+        return profile_data
+
+    def _safe_strip(self, value) -> Optional[str]:
+        """安全にstrip処理を行う（None値対応）
+        
+        Args:
+            value: 処理対象の値
+            
+        Returns:
+            Optional[str]: strip処理後の文字列、空文字またはNoneの場合はNone
+        """
+        if value is None:
+            return None
+        
+        if isinstance(value, str):
+            stripped = value.strip()
+            return stripped if stripped else None
+        
+        # 文字列以外の場合は文字列に変換してからstrip
+        try:
+            stripped = str(value).strip()
+            return stripped if stripped else None
+        except (ValueError, TypeError):
+            return None
+
+    def _parse_numeric_value(self, value) -> Optional[int]:
+        """数値文字列を整数に変換（エラーハンドリング付き）
+        
+        Args:
+            value: 変換対象の値
+            
+        Returns:
+            Optional[int]: 変換された整数値、変換できない場合はNone
+        """
+        if not value:
+            return None
+            
+        try:
+            # 文字列から数字のみを抽出
+            if isinstance(value, str):
+                numeric_str = re.sub(r'[^\d]', '', value)
+                if numeric_str:
+                    return int(numeric_str)
+            elif isinstance(value, (int, float)):
+                return int(value)
+        except (ValueError, TypeError):
+            pass
+            
+        return None
+
+    def _clean_empty_values(self, data: Dict) -> Dict:
+        """辞書から空の値を再帰的に除去
+        
+        Args:
+            data (Dict): クリーニング対象の辞書
+            
+        Returns:
+            Dict: クリーニング後の辞書
+        """
+        if not isinstance(data, dict):
+            return data
+            
+        cleaned = {}
+        for key, value in data.items():
+            if isinstance(value, dict):
+                cleaned_nested = self._clean_empty_values(value)
+                if cleaned_nested:  # 空でない場合のみ追加
+                    cleaned[key] = cleaned_nested
+            elif value is not None and value != '':
+                cleaned[key] = value
+                
+        return cleaned
+
+    def _save_profile_data(self, person_id: int, actress: Dict) -> bool:
+        """プロフィールデータをperson_profilesテーブルに保存
+        
+        Args:
+            person_id (int): 人物ID
+            actress (Dict): DMM APIからの女優データ
+            
+        Returns:
+            bool: 保存成功の場合True
+        """
+        try:
+            # プロフィールデータを解析
+            profile_data = self._parse_dmm_profile_data(actress)
+            
+            if self.dry_run:
+                logger.info(f"[DRY RUN] プロフィールデータ保存: person_id={person_id}")
+                return True
+            
+            # 既存プロフィールを確認（統計のため）
+            existing_profile = self.db.get_person_profile(person_id)
+            had_existing_profile = existing_profile is not None
+            
+            # プロフィールデータを保存（upsert操作）
+            profile_id = self.db.upsert_person_profile(person_id, profile_data)
+            
+            # 統計を更新
+            if had_existing_profile:
+                self.stats['profiles_updated'] += 1
+            else:
+                self.stats['profiles_created'] += 1
+            
+            logger.info(f"プロフィールデータ保存完了: person_id={person_id}, profile_id={profile_id}")
+            return True
+            
+        except Exception as e:
+            error_msg = f"プロフィールデータ保存エラー: person_id={person_id} - {e}"
+            logger.error(error_msg)
+            self._write_error_log(error_msg, "N/A", "N/A")
+            self.stats['profile_errors'] += 1
+            return False
 
 
 def main():

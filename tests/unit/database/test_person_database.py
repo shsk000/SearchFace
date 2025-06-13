@@ -114,10 +114,9 @@ class TestPersonDatabase:
         person_id = person_db.create_person("テスト人物")
         
         # プロフィールを作成
-        base_image_path = "test/path/image.jpg"
         metadata = {"profile": "test"}
         
-        profile_id = person_db.create_person_profile(person_id, base_image_path, metadata)
+        profile_id = person_db.create_person_profile(person_id, metadata)
         
         # 結果を確認
         assert profile_id is not None
@@ -130,9 +129,8 @@ class TestPersonDatabase:
         person_id = person_db.create_person("テスト人物")
         
         # プロフィールを作成
-        base_image_path = "test/path/image.jpg"
         metadata = {"profile": "test"}
-        profile_id = person_db.create_person_profile(person_id, base_image_path, metadata)
+        profile_id = person_db.create_person_profile(person_id, metadata)
         
         # プロフィールを取得
         profile = person_db.get_person_profile(person_id)
@@ -141,7 +139,6 @@ class TestPersonDatabase:
         assert profile is not None
         assert profile['profile_id'] == profile_id
         assert profile['person_id'] == person_id
-        assert profile['base_image_path'] == base_image_path
         assert profile['metadata'] == metadata
 
     def test_get_person_profile_not_found(self, person_db):
@@ -156,8 +153,7 @@ class TestPersonDatabase:
         person_id = person_db.create_person(name)
         
         # プロフィールを作成
-        base_image_path = "test/path/image.jpg"
-        person_db.create_person_profile(person_id, base_image_path)
+        person_db.create_person_profile(person_id)
         
         # 詳細情報を取得
         detail = person_db.get_person_detail(person_id)
@@ -166,7 +162,6 @@ class TestPersonDatabase:
         assert detail is not None
         assert detail['person_id'] == person_id
         assert detail['name'] == name
-        assert detail['image_path'] == base_image_path
 
     def test_get_or_create_person_existing(self, person_db):
         """既存人物の取得テスト"""
@@ -199,7 +194,6 @@ class TestPersonDatabase:
         # プロフィールも作成されることを確認
         profile = person_db.get_person_profile(person_id)
         assert profile is not None
-        assert profile['base_image_path'] == f"data/images/base/{name}.jpg"
 
     def test_update_person(self, person_db):
         """人物情報更新のテスト"""
@@ -251,8 +245,7 @@ class TestPersonDatabase:
         for name in names:
             person_id = person_db.create_person(name)
             # プロフィールも作成
-            base_image_path = f"test/path/{name}.jpg"
-            person_db.create_person_profile(person_id, base_image_path)
+            person_db.create_person_profile(person_id)
         
         # 全人物を取得
         all_persons = person_db.get_all_persons()
@@ -261,7 +254,81 @@ class TestPersonDatabase:
         assert len(all_persons) == 3
         retrieved_names = [person['name'] for person in all_persons]
         assert set(retrieved_names) == set(names)
+
+    def test_update_person_profile(self, person_db):
+        """人物プロフィール更新のテスト"""
+        # 人物を作成
+        person_id = person_db.create_person("テスト人物")
         
-        # プロフィール情報も含まれることを確認
-        for person in all_persons:
-            assert person['base_image_path'] is not None
+        # 初期プロフィールを作成
+        initial_metadata = {"initial": "data", "shared": "original"}
+        person_db.create_person_profile(person_id, initial_metadata)
+        
+        # プロフィールを更新
+        update_metadata = {"new": "data", "shared": "updated"}
+        success = person_db.update_person_profile(person_id, update_metadata)
+        
+        # 更新成功を確認
+        assert success is True
+        
+        # 更新されたプロフィールを取得
+        profile = person_db.get_person_profile(person_id)
+        assert profile is not None
+        
+        # メタデータがマージされていることを確認
+        merged_metadata = profile['metadata']
+        assert merged_metadata['initial'] == "data"  # 既存データ保持
+        assert merged_metadata['new'] == "data"      # 新規データ追加
+        assert merged_metadata['shared'] == "updated"  # 重複キーは更新
+
+    def test_update_person_profile_nonexistent(self, person_db):
+        """存在しない人物のプロフィール更新テスト（自動作成）"""
+        # 存在しない人物のプロフィールを更新（自動作成）
+        person_id = person_db.create_person("テスト人物")
+        metadata = {"auto": "created"}
+        
+        success = person_db.update_person_profile(person_id, metadata)
+        assert success is True
+        
+        # プロフィールが作成されたことを確認
+        profile = person_db.get_person_profile(person_id)
+        assert profile is not None
+        assert profile['metadata'] == metadata
+
+    def test_upsert_person_profile_new(self, person_db):
+        """新規プロフィールのupsertテスト"""
+        # 人物を作成
+        person_id = person_db.create_person("テスト人物")
+        
+        # upsert（新規作成）
+        metadata = {"upsert": "new"}
+        profile_id = person_db.upsert_person_profile(person_id, metadata)
+        
+        # プロフィールが作成されたことを確認
+        assert profile_id is not None
+        profile = person_db.get_person_profile(person_id)
+        assert profile is not None
+        assert profile['metadata'] == metadata
+
+    def test_upsert_person_profile_existing(self, person_db):
+        """既存プロフィールのupsertテスト"""
+        # 人物を作成
+        person_id = person_db.create_person("テスト人物")
+        
+        # 初期プロフィールを作成
+        initial_metadata = {"initial": "data"}
+        original_profile_id = person_db.create_person_profile(person_id, initial_metadata)
+        
+        # upsert（更新）
+        update_metadata = {"updated": "data"}
+        profile_id = person_db.upsert_person_profile(person_id, update_metadata)
+        
+        # 同じprofile_idが返されることを確認
+        assert profile_id == original_profile_id
+        
+        # メタデータが更新されたことを確認
+        profile = person_db.get_person_profile(person_id)
+        assert profile is not None
+        merged_metadata = profile['metadata']
+        assert merged_metadata['initial'] == "data"
+        assert merged_metadata['updated'] == "data"

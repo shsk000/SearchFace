@@ -45,21 +45,60 @@ class PersonDatabase:
             )
         """)
         
-        # 人物紹介テーブル（DMM女優IDとベース画像パスをpersonsに移行したため簡素化）
+        # 人物プロフィールテーブル（検索用に構造化）
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS person_profiles (
                 profile_id INTEGER PRIMARY KEY AUTOINCREMENT,
                 person_id INTEGER NOT NULL UNIQUE,
+                
+                -- 基本情報
+                ruby TEXT,
+                birthday DATE,
+                birth_year INTEGER,
+                blood_type TEXT,
+                hobby TEXT,
+                prefectures TEXT,
+                
+                -- 身体情報
+                height INTEGER,
+                bust INTEGER,
+                waist INTEGER,
+                hip INTEGER,
+                cup TEXT,
+                
+                -- 画像URL
+                image_small_url TEXT,
+                image_large_url TEXT,
+                
+                -- DMM情報
+                dmm_list_url_digital TEXT,
+                dmm_list_url_monthly_premium TEXT,
+                dmm_list_url_mono TEXT,
+                
+                -- システム情報
+                last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                
+                -- 追加メタデータ（柔軟性のため残す）
                 metadata TEXT,
+                
                 FOREIGN KEY (person_id) REFERENCES persons(person_id) ON DELETE CASCADE
             )
         """)
         
-        # 検索用インデックス
+        # 検索用インデックス（最小限）
         self.cursor.execute("CREATE INDEX IF NOT EXISTS idx_persons_name ON persons(name)")
         self.cursor.execute("CREATE INDEX IF NOT EXISTS idx_persons_dmm_actress_id ON persons(dmm_actress_id)")
         self.cursor.execute("CREATE INDEX IF NOT EXISTS idx_person_profiles_person_id ON person_profiles(person_id)")
+        
+        # プロフィール検索用インデックス（身体情報中心）
+        self.cursor.execute("CREATE INDEX IF NOT EXISTS idx_profiles_ruby ON person_profiles(ruby)")
+        self.cursor.execute("CREATE INDEX IF NOT EXISTS idx_profiles_height ON person_profiles(height)")
+        self.cursor.execute("CREATE INDEX IF NOT EXISTS idx_profiles_bust ON person_profiles(bust)")
+        self.cursor.execute("CREATE INDEX IF NOT EXISTS idx_profiles_cup ON person_profiles(cup)")
+        
+        # 複合インデックス（身体情報での絞り込み用）
+        self.cursor.execute("CREATE INDEX IF NOT EXISTS idx_profiles_measurements ON person_profiles(height, cup, bust)")
         
         self.conn.commit()
     
@@ -318,6 +357,168 @@ class PersonDatabase:
             self.conn.rollback()
             raise Exception(f"人物の削除に失敗: {str(e)}")
     
+    def update_person_profile(self, person_id: int, metadata: Dict[str, Any]) -> bool:
+        """人物プロフィールのメタデータを更新
+        
+        Args:
+            person_id (int): 人物ID
+            metadata (Dict[str, Any]): 新しいメタデータ
+            
+        Returns:
+            bool: 更新成功の場合True
+        """
+        try:
+            self.cursor.execute(
+                "UPDATE person_profiles SET metadata = ? WHERE person_id = ?",
+                (json.dumps(metadata), person_id)
+            )
+            success = self.cursor.rowcount > 0
+            self.conn.commit()
+            
+            if success:
+                logger.info(f"人物プロフィールを更新: person_id={person_id}")
+            
+            return success
+            
+        except Exception as e:
+            self.conn.rollback()
+            raise Exception(f"人物プロフィールの更新に失敗: {str(e)}")
+    
+    def upsert_person_profile(self, person_id: int, profile_data: Dict[str, Any]) -> int:
+        """人物プロフィールを作成または更新（個別カラム対応）
+        
+        Args:
+            person_id (int): 人物ID
+            profile_data (Dict[str, Any]): プロフィールデータ（個別カラム用）
+            
+        Returns:
+            int: プロフィールID
+        """
+        try:
+            # 既存プロフィールを確認
+            existing_profile = self.get_person_profile(person_id)
+            
+            if existing_profile:
+                # 既存プロフィールを更新
+                self._update_person_profile_columns(person_id, profile_data)
+                return existing_profile['profile_id']
+            else:
+                # 新規作成
+                return self._create_person_profile_with_columns(person_id, profile_data)
+                
+        except Exception as e:
+            raise Exception(f"人物プロフィールのupsertに失敗: {str(e)}")
+    
+    def _create_person_profile_with_columns(self, person_id: int, profile_data: Dict[str, Any]) -> int:
+        """個別カラムでプロフィールを新規作成
+        
+        Args:
+            person_id (int): 人物ID
+            profile_data (Dict[str, Any]): プロフィールデータ
+            
+        Returns:
+            int: 作成されたプロフィールID
+        """
+        try:
+            columns = [
+                'person_id', 'ruby', 'birthday', 'blood_type', 'hobby', 'prefectures',
+                'height', 'bust', 'waist', 'hip', 'cup',
+                'image_small_url', 'image_large_url',
+                'dmm_list_url_digital', 'dmm_list_url_monthly_premium', 'dmm_list_url_mono',
+                'metadata'
+            ]
+            
+            placeholders = ', '.join(['?'] * len(columns))
+            column_names = ', '.join(columns)
+            
+            values = [person_id]
+            for col in columns[1:]:  # person_id以外
+                values.append(profile_data.get(col))
+            
+            self.cursor.execute(
+                f"INSERT INTO person_profiles ({column_names}) VALUES ({placeholders})",
+                values
+            )
+            
+            profile_id = self.cursor.lastrowid
+            self.conn.commit()
+            
+            logger.info(f"個別カラムで人物プロフィールを作成: person_id={person_id}, profile_id={profile_id}")
+            return profile_id
+            
+        except Exception as e:
+            self.conn.rollback()
+            raise Exception(f"個別カラムでのプロフィール作成に失敗: {str(e)}")
+    
+    def _update_person_profile_columns(self, person_id: int, profile_data: Dict[str, Any]) -> bool:
+        """個別カラムでプロフィールを更新
+        
+        Args:
+            person_id (int): 人物ID
+            profile_data (Dict[str, Any]): プロフィールデータ
+            
+        Returns:
+            bool: 更新成功の場合True
+        """
+        try:
+            columns = [
+                'ruby', 'birthday', 'blood_type', 'hobby', 'prefectures',
+                'height', 'bust', 'waist', 'hip', 'cup',
+                'image_small_url', 'image_large_url',
+                'dmm_list_url_digital', 'dmm_list_url_monthly_premium', 'dmm_list_url_mono',
+                'metadata'
+            ]
+            
+            set_clauses = []
+            values = []
+            
+            for col in columns:
+                if col in profile_data:
+                    set_clauses.append(f"{col} = ?")
+                    values.append(profile_data[col])
+            
+            if not set_clauses:
+                return True  # 更新項目がない場合は成功扱い
+            
+            # last_updatedも更新
+            set_clauses.append("last_updated = CURRENT_TIMESTAMP")
+            values.append(person_id)
+            
+            query = f"UPDATE person_profiles SET {', '.join(set_clauses)} WHERE person_id = ?"
+            
+            self.cursor.execute(query, values)
+            success = self.cursor.rowcount > 0
+            self.conn.commit()
+            
+            if success:
+                logger.info(f"個別カラムで人物プロフィールを更新: person_id={person_id}")
+            
+            return success
+            
+        except Exception as e:
+            self.conn.rollback()
+            raise Exception(f"個別カラムでのプロフィール更新に失敗: {str(e)}")
+    
+    def _deep_merge_dict(self, base_dict: Dict, update_dict: Dict) -> Dict:
+        """辞書の深いマージを実行
+        
+        Args:
+            base_dict (Dict): ベース辞書
+            update_dict (Dict): 更新辞書
+            
+        Returns:
+            Dict: マージされた辞書
+        """
+        result = base_dict.copy()
+        
+        for key, value in update_dict.items():
+            if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+                result[key] = self._deep_merge_dict(result[key], value)
+            else:
+                result[key] = value
+                
+        return result
+
     def get_all_persons(self) -> List[Dict[str, Any]]:
         """すべての人物情報を取得
         
