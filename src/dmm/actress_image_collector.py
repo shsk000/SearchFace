@@ -412,90 +412,42 @@ class DmmActressImageCollector:
             if self.config.save_product_images and actress_name and product_id:
                 self._save_product_image(image_data, actress_name, product_id, image_url)
             
-            # PIL Image に変換
+            # PIL Image に変換し、確実にRGB形式にする
             pil_image = Image.open(BytesIO(image_data))
-            image_array = np.array(pil_image)
-            
-            # face_recognitionライブラリはRGB uint8画像を期待するため、形状とデータ型を確認
-            if len(image_array.shape) == 2:
-                # グレースケール画像の場合はRGBに変換
-                image_array = np.stack([image_array] * 3, axis=-1)
-                logger.debug("グレースケール画像をRGBに変換しました")
-            elif len(image_array.shape) == 3 and image_array.shape[2] == 4:
-                # RGBA画像の場合はRGBに変換
-                image_array = image_array[:, :, :3]
-                logger.debug("RGBA画像をRGBに変換しました")
-            
-            # データ型をuint8に確実に変換
-            if image_array.dtype != np.uint8:
-                # float型の場合は0-1範囲を0-255範囲に変換
-                if image_array.dtype in [np.float32, np.float64]:
-                    if image_array.max() <= 1.0:
-                        image_array = (image_array * 255).astype(np.uint8)
-                    else:
-                        image_array = image_array.astype(np.uint8)
-                else:
-                    image_array = image_array.astype(np.uint8)
-                logger.debug(f"画像データ型をuint8に変換しました")
-            
-            # 3次元RGB形状を確認
-            if len(image_array.shape) != 3 or image_array.shape[2] != 3:
-                logger.error(f"画像形状が不正です: {image_array.shape}")
-                return FaceExtractionResult(
-                    success=False,
-                    face_image_data=None,
-                    similarity_score=0.0,
-                    error_message=f"画像形状が不正です: {image_array.shape}"
-                )
+            pil_image_rgb = pil_image.convert('RGB')
+            image_array = np.array(pil_image_rgb, dtype=np.uint8)
             
             # メモリレイアウトを連続にする（face_recognitionライブラリの要件）
-            if not image_array.flags['C_CONTIGUOUS']:
-                image_array = np.ascontiguousarray(image_array)
-                logger.debug("画像配列をC連続にしました")
+            image_array = np.ascontiguousarray(image_array)
+            logger.debug("画像をRGB形式に変換し、C連続配列にしました")
             
             logger.debug(f"最終画像形状: {image_array.shape}, データ型: {image_array.dtype}, C連続: {image_array.flags['C_CONTIGUOUS']}")
             
-            # 顔検出（エラーハンドリング強化）
+            # 顔検出
             try:
                 encodings, locations = face_utils.detect_faces(image_array)
             except Exception as face_detection_error:
                 logger.error(f"顔検出でエラーが発生: {str(face_detection_error)}")
                 logger.error(f"画像詳細: shape={image_array.shape}, dtype={image_array.dtype}, min={image_array.min()}, max={image_array.max()}")
                 
-                # 代替手段: PIL経由で再読み込みしてRGBに確実に変換
-                try:
-                    pil_image_rgb = pil_image.convert('RGB')
-                    image_array = np.array(pil_image_rgb)
-                    
-                    # C連続配列に変換
-                    image_array = np.ascontiguousarray(image_array, dtype=np.uint8)
-                    logger.info("PIL RGB変換による修復を試行中...")
-                    
-                    encodings, locations = face_utils.detect_faces(image_array)
-                    logger.info("PIL RGB変換による修復が成功しました")
-                    
-                except Exception as retry_error:
-                    logger.error(f"PIL RGB変換による修復も失敗: {str(retry_error)}")
-                    
-                    # エラーログファイルに詳細を出力
-                    self._log_error_to_file(
-                        error_type="face_detection_error",
-                        error_message=f"顔検出エラー: {str(face_detection_error)}",
-                        traceback_info=traceback.format_exc(),
-                        actress_name=actress_name,
-                        product_id=product_id,
-                        additional_info={
-                            "image_url": image_url,
-                            "retry_error": str(retry_error)
-                        }
-                    )
-                    
-                    return FaceExtractionResult(
-                        success=False,
-                        face_image_data=None,
-                        similarity_score=0.0,
-                        error_message=f"顔検出エラー: {str(face_detection_error)}"
-                    )
+                # エラーログファイルに詳細を出力
+                self._log_error_to_file(
+                    error_type="face_detection_error",
+                    error_message=f"顔検出エラー: {str(face_detection_error)}",
+                    traceback_info=traceback.format_exc(),
+                    actress_name=actress_name,
+                    product_id=product_id,
+                    additional_info={
+                        "image_url": image_url
+                    }
+                )
+                
+                return FaceExtractionResult(
+                    success=False,
+                    face_image_data=None,
+                    similarity_score=0.0,
+                    error_message=f"顔検出エラー: {str(face_detection_error)}"
+                )
             
             if not encodings:
                 return FaceExtractionResult(
@@ -551,12 +503,48 @@ class DmmActressImageCollector:
                     selected_face = max(face_candidates, key=lambda x: x['similarity'])
                     logger.debug(f"類似度優先モード: 類似度={selected_face['similarity']:.3f}")
                 
-                # 選択された顔を切り出し
+                # 選択された顔を切り出し（余白を追加して顎なども含める）
                 top, right, bottom, left = selected_face['location']
-                face_crop = image_array[top:bottom, left:right]
+                
+                # 顔領域を拡張（設定値に基づいた余白を追加）
+                face_height = bottom - top
+                face_width = right - left
+                
+                # 拡張サイズを計算
+                expand_height = int(face_height * self.config.face_expand_ratio)
+                expand_width = int(face_width * self.config.face_expand_ratio)
+                
+                # 画像境界を考慮して拡張
+                img_height, img_width = image_array.shape[:2]
+                expanded_top = max(0, top - expand_height)
+                expanded_bottom = min(img_height, bottom + expand_height)
+                expanded_left = max(0, left - expand_width)
+                expanded_right = min(img_width, right + expand_width)
+                
+                face_crop = image_array[expanded_top:expanded_bottom, expanded_left:expanded_right]
+                
+                logger.debug(f"顔切り出し - 元の領域: ({top},{left})-({bottom},{right}), "
+                           f"拡張後: ({expanded_top},{expanded_left})-({expanded_bottom},{expanded_right})")
                 
                 # PIL Image に変換してバイトデータ化
                 face_pil = Image.fromarray(face_crop)
+                
+                # 顔画像のサイズを確認し、小さすぎる場合はリサイズ
+                min_face_size = self.config.min_face_size  # 設定値から最小サイズを取得
+                face_width, face_height = face_pil.size
+                
+                if face_width < min_face_size or face_height < min_face_size:
+                    # アスペクト比を保持してリサイズ
+                    if face_width < face_height:
+                        new_width = min_face_size
+                        new_height = int((min_face_size / face_width) * face_height)
+                    else:
+                        new_height = min_face_size
+                        new_width = int((min_face_size / face_height) * face_width)
+                    
+                    face_pil = face_pil.resize((new_width, new_height), Image.Resampling.LANCZOS)
+                    logger.debug(f"顔画像をリサイズ: {face_width}x{face_height} -> {new_width}x{new_height}")
+                
                 face_bytes = BytesIO()
                 face_pil.save(face_bytes, format='JPEG', quality=95)
                 

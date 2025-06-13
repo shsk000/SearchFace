@@ -250,7 +250,7 @@ class DmmFaceCollectionRunner:
         config = stats.get('config', self.config.__dict__)
         print(f"類似度閾値: {config.get('similarity_threshold', 0.55)}")
         print(f"最大収集数/女優: {config.get('max_faces_per_actress', 3)}枚")
-        print(f"DMM商品取得数: {config.get('dmm_products_limit', 30)}件")
+        print(f"DMM商品取得数: {config.get('dmm_products_limit', 50)}件")
         print(f"保存先: {config.get('save_directory_template', 'data/images/base/{actress_name}')}")
 
     def _get_collection_candidates(self) -> List[dict]:
@@ -405,6 +405,8 @@ def main():
     parser.add_argument('--max-faces', type=int, default=3, help='最大収集数/女優 (default: 3)')
     parser.add_argument('--save-products', action='store_true', help='商品画像も保存する（検証用）')
     parser.add_argument('--no-right-priority', action='store_true', help='右側顔優先を無効にする（デフォルトは右側優先）')
+    parser.add_argument('--face-expand-ratio', type=float, default=0.2, help='顔領域拡張率 (default: 0.2)')
+    parser.add_argument('--min-face-size', type=int, default=150, help='最小顔画像サイズ (default: 150)')
     parser.add_argument('--verbose', action='store_true', help='詳細ログ出力')
 
     args = parser.parse_args()
@@ -418,7 +420,9 @@ def main():
         similarity_threshold=args.similarity_threshold,
         max_faces_per_actress=args.max_faces,
         save_product_images=args.save_products,
-        prioritize_right_faces=not args.no_right_priority  # --no-right-priorityが指定されていない場合は右側優先
+        prioritize_right_faces=not args.no_right_priority,  # --no-right-priorityが指定されていない場合は右側優先
+        face_expand_ratio=args.face_expand_ratio,
+        min_face_size=args.min_face_size
     )
 
     # 実行クラス初期化

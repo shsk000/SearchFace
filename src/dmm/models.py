@@ -186,6 +186,8 @@ class CollectionConfig:
     
     # 画像処理設定
     prioritize_right_faces: bool = True  # 右側の顔を優先的に選択する
+    face_expand_ratio: float = 0.2  # 顔領域の拡張率（20%の余白を追加）
+    min_face_size: int = 150  # 最小顔画像サイズ（ピクセル）
     
     def get_save_directory(self, actress_name: str) -> str:
         """保存ディレクトリパスを取得"""
