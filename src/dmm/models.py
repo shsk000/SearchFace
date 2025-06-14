@@ -29,12 +29,12 @@ class ActressInfo:
     name: str
     dmm_actress_id: Optional[int]
     base_image_path: Optional[str]
-    
+
     @property
     def has_dmm_id(self) -> bool:
         """DMM女優IDが設定されているかチェック"""
         return self.dmm_actress_id is not None
-    
+
     @property
     def has_base_image(self) -> bool:
         """基準画像パスが設定されているかチェック"""
@@ -45,7 +45,7 @@ class ActressInfo:
 class DmmImageInfo:
     """DMM商品画像情報"""
     list_url: str       # リストページ用画像URL
-    small_url: str      # 小サイズ画像URL  
+    small_url: str      # 小サイズ画像URL
     large_url: str      # 大サイズ画像URL（メイン使用）
 
 
@@ -56,12 +56,12 @@ class DmmProduct:
     title: str
     image_info: DmmImageInfo
     actress_count: int = 1  # 出演女優数
-    
+
     @property
     def primary_image_url(self) -> str:
         """メイン画像URLを取得（大サイズを優先）"""
         return self.image_info.large_url
-    
+
     @property
     def is_single_actress(self) -> bool:
         """単一女優の商品かチェック"""
@@ -75,7 +75,7 @@ class DmmApiResponse:
     result_count: int
     total_count: int
     products: List[DmmProduct]
-    
+
     @property
     def has_products(self) -> bool:
         """商品が存在するかチェック"""
@@ -89,7 +89,7 @@ class FaceExtractionResult:
     face_image_data: Optional[bytes]
     similarity_score: float
     error_message: Optional[str] = None
-    
+
     @property
     def is_valid(self) -> bool:
         """有効な顔画像かチェック"""
@@ -117,26 +117,26 @@ class CollectionResult:
     saved_faces: List[SavedFaceInfo] = None
     error_message: Optional[str] = None
     processing_time: float = 0.0
-    
+
     def __post_init__(self):
         """初期化後処理"""
         if self.saved_faces is None:
             self.saved_faces = []
-    
+
     @property
     def success_count(self) -> int:
         """成功した保存数"""
         return len(self.saved_faces)
-    
+
     @property
     def is_success(self) -> bool:
         """収集が成功したかチェック"""
         return self.status == CollectionStatus.SUCCESS and self.success_count > 0
-    
+
     def add_saved_face(self, face_info: SavedFaceInfo):
         """保存された顔情報を追加"""
         self.saved_faces.append(face_info)
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """辞書形式に変換"""
         return {
@@ -164,39 +164,44 @@ class CollectionConfig:
     """収集設定"""
     # 類似度閾値（既存ImageCollectorの設定を活用）
     similarity_threshold: float = 0.55
-    
+
     # 最大収集数
     max_faces_per_actress: int = 3
-    
+
     # DMM API設定
-    dmm_products_limit: int = 10
-    
+    dmm_products_limit: int = 100
+    max_search_pages: int = 5  # 最大検索ページ数（offsetを使った複数回検索）
+    min_faces_threshold: int = 1  # この枚数以下の場合は追加検索を実行
+
     # タイムアウト設定
     request_timeout: int = 30
     retry_count: int = 3
     retry_delay: int = 1
-    
+
     # 保存設定
     save_directory_template: str = "data/images/dmm/{actress_name}"
     filename_template: str = "search-dmm-{content_id}-{hash}.{extension}"
-    
+
     # 商品画像保存設定
     save_product_images: bool = False
     product_images_subdir: str = "products"
-    
+
     # 画像処理設定
     prioritize_right_faces: bool = True  # 右側の顔を優先的に選択する
     face_expand_ratio: float = 0.2  # 顔領域の拡張率（20%の余白を追加）
     min_face_size: int = 150  # 最小顔画像サイズ（ピクセル）
     
+    # 実行制御設定
+    force_reprocess: bool = False  # 処理済みチェックを無視して強制実行
+
     def get_save_directory(self, actress_name: str) -> str:
         """保存ディレクトリパスを取得"""
         return self.save_directory_template.format(actress_name=actress_name)
-    
+
     def get_filename(self, content_id: str, hash_value: str, extension: str) -> str:
         """ファイル名を取得"""
         return self.filename_template.format(content_id=content_id, hash=hash_value, extension=extension)
-    
+
     def get_product_images_directory(self, actress_name: str) -> str:
         """商品画像保存ディレクトリパスを取得"""
         base_dir = self.get_save_directory(actress_name)

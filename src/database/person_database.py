@@ -137,7 +137,7 @@ class PersonDatabase:
             Optional[Dict[str, Any]]: 人物情報、存在しない場合はNone
         """
         self.cursor.execute(
-            "SELECT person_id, name, created_at, metadata FROM persons WHERE name = ?",
+            "SELECT person_id, name, dmm_actress_id, base_image_path, created_at, metadata FROM persons WHERE name = ?",
             (name,)
         )
         row = self.cursor.fetchone()
@@ -146,6 +146,8 @@ class PersonDatabase:
             return {
                 'person_id': row['person_id'],
                 'name': row['name'],
+                'dmm_actress_id': row['dmm_actress_id'],
+                'base_image_path': row['base_image_path'],
                 'created_at': row['created_at'],
                 'metadata': json.loads(row['metadata']) if row['metadata'] else None
             }
@@ -161,7 +163,7 @@ class PersonDatabase:
             Optional[Dict[str, Any]]: 人物情報、存在しない場合はNone
         """
         self.cursor.execute(
-            "SELECT person_id, name, created_at, metadata FROM persons WHERE person_id = ?",
+            "SELECT person_id, name, dmm_actress_id, base_image_path, created_at, metadata FROM persons WHERE person_id = ?",
             (person_id,)
         )
         row = self.cursor.fetchone()
@@ -170,6 +172,8 @@ class PersonDatabase:
             return {
                 'person_id': row['person_id'],
                 'name': row['name'],
+                'dmm_actress_id': row['dmm_actress_id'],
+                'base_image_path': row['base_image_path'],
                 'created_at': row['created_at'],
                 'metadata': json.loads(row['metadata']) if row['metadata'] else None
             }

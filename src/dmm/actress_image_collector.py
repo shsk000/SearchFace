@@ -94,8 +94,8 @@ class DmmActressImageCollector:
                     processing_time=time.time() - start_time
                 )
             
-            # 3. 処理済みチェック
-            if self._is_already_processed(actress_info.name):
+            # 3. 処理済みチェック（強制実行フラグが有効でない場合のみ）
+            if not self.config.force_reprocess and self._is_already_processed(actress_info.name):
                 return CollectionResult(
                     status=CollectionStatus.ALREADY_PROCESSED,
                     actress_name=actress_info.name,
@@ -103,22 +103,8 @@ class DmmActressImageCollector:
                     processing_time=time.time() - start_time
                 )
             
-            # 4. DMM API商品検索
-            api_response = self.api_client.search_actress_products(
-                actress_info.dmm_actress_id,
-                self.config.dmm_products_limit
-            )
-            
-            if not api_response or not api_response.has_products:
-                return CollectionResult(
-                    status=CollectionStatus.NO_VALID_IMAGES,
-                    actress_name=actress_info.name,
-                    error_message="商品が見つかりません",
-                    processing_time=time.time() - start_time
-                )
-            
-            # 5. 顔画像収集・保存
-            saved_faces = self._collect_and_save_faces(actress_info, api_response.products)
+            # 4. 複数回検索による顔画像収集
+            saved_faces, total_products_searched = self._collect_faces_with_pagination(actress_info)
             
             # 6. 処理済みマーク
             self._mark_as_processed(actress_info.name)
@@ -130,8 +116,8 @@ class DmmActressImageCollector:
                 return CollectionResult(
                     status=CollectionStatus.SUCCESS,
                     actress_name=actress_info.name,
-                    total_products=len(api_response.products),
-                    processed_images=len(api_response.products),
+                    total_products=total_products_searched,
+                    processed_images=total_products_searched,
                     saved_faces=saved_faces,
                     processing_time=processing_time
                 )
@@ -139,8 +125,8 @@ class DmmActressImageCollector:
                 return CollectionResult(
                     status=CollectionStatus.NO_VALID_IMAGES,
                     actress_name=actress_info.name,
-                    total_products=len(api_response.products),
-                    processed_images=len(api_response.products),
+                    total_products=total_products_searched,
+                    processed_images=total_products_searched,
                     error_message="有効な顔画像が見つかりませんでした",
                     processing_time=processing_time
                 )
@@ -278,17 +264,21 @@ class DmmActressImageCollector:
         # このメソッドでは特別な処理は不要
         logger.debug(f"処理済みマーク: {actress_name}")
     
-    def _collect_and_save_faces(self, actress_info: ActressInfo, products: List) -> List[SavedFaceInfo]:
+    def _collect_and_save_faces(self, actress_info: ActressInfo, products: List, max_collect: Optional[int] = None) -> List[SavedFaceInfo]:
         """顔画像を収集・保存
         
         Args:
             actress_info (ActressInfo): 女優情報
             products (List): 商品リスト
+            max_collect (Optional[int]): 最大収集数（Noneの場合は設定値を使用）
             
         Returns:
             List[SavedFaceInfo]: 保存された顔情報リスト
         """
         saved_faces = []
+        
+        # 最大収集数の決定
+        target_count = max_collect if max_collect is not None else self.config.max_faces_per_actress
         
         # 基準顔エンコーディング取得
         base_encoding = self._get_base_encoding(actress_info.base_image_path)
@@ -302,7 +292,7 @@ class DmmActressImageCollector:
         
         # 商品画像を順次処理
         for product in products:
-            if len(saved_faces) >= self.config.max_faces_per_actress:
+            if len(saved_faces) >= target_count:
                 break
             
             # 複数女優商品はスキップ
@@ -879,6 +869,71 @@ class DmmActressImageCollector:
             
         except Exception as log_error:
             logger.error(f"保存失敗ログの記録に失敗: {str(log_error)}")
+    
+    def _collect_faces_with_pagination(self, actress_info) -> tuple[list, int]:
+        """ページ分割検索による顔画像収集
+        
+        Args:
+            actress_info: 女優情報
+            
+        Returns:
+            tuple[list, int]: (保存された顔画像リスト, 検索した商品総数)
+        """
+        all_saved_faces = []
+        total_products_searched = 0
+        current_offset = 1
+        
+        logger.info(f"📄 複数回検索開始: {actress_info.name} - 目標枚数: {self.config.max_faces_per_actress}")
+        
+        for page in range(1, self.config.max_search_pages + 1):
+            # 目標枚数に達した場合は終了
+            if len(all_saved_faces) >= self.config.max_faces_per_actress:
+                logger.info(f"✅ 目標枚数達成: {actress_info.name} - {len(all_saved_faces)}枚")
+                break
+            
+            # 閾値チェック：最初のページまたは現在の枚数が閾値以下の場合のみ継続
+            if page > 1 and len(all_saved_faces) > self.config.min_faces_threshold:
+                logger.info(f"📊 閾値クリア: {actress_info.name} - {len(all_saved_faces)}枚収集済み、検索終了")
+                break
+            
+            logger.info(f"📄 検索ページ {page}/{self.config.max_search_pages} - オフセット: {current_offset}")
+            
+            # DMM API商品検索
+            api_response = self.api_client.search_actress_products(
+                actress_info.dmm_actress_id,
+                self.config.dmm_products_limit,
+                current_offset
+            )
+            
+            if not api_response or not api_response.has_products:
+                logger.info(f"📭 商品なし: ページ{page}で商品が見つかりません")
+                break
+            
+            total_products_searched += len(api_response.products)
+            logger.info(f"🔍 検索結果: ページ{page} - {len(api_response.products)}件の商品")
+            
+            # このページの商品から顔画像収集
+            page_saved_faces = self._collect_and_save_faces(
+                actress_info, 
+                api_response.products,
+                max_collect=self.config.max_faces_per_actress - len(all_saved_faces)
+            )
+            
+            if page_saved_faces:
+                all_saved_faces.extend(page_saved_faces)
+                logger.info(f"💾 ページ{page}収集結果: {len(page_saved_faces)}枚保存 (累計: {len(all_saved_faces)}枚)")
+            else:
+                logger.info(f"📭 ページ{page}: 有効な顔画像なし")
+            
+            # 次のページのオフセット計算
+            current_offset += self.config.dmm_products_limit
+            
+            # APIレート制限対策
+            if page < self.config.max_search_pages:
+                time.sleep(0.5)
+        
+        logger.info(f"📊 複数回検索完了: {actress_info.name} - {len(all_saved_faces)}枚保存, {total_products_searched}商品検索")
+        return all_saved_faces, total_products_searched
     
     def close(self):
         """リソースを閉じる"""

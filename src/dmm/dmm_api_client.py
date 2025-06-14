@@ -33,12 +33,13 @@ class DmmApiClient:
         
         logger.info("DMM APIクライアント初期化完了")
     
-    def search_actress_products(self, dmm_actress_id: int, limit: int = 10) -> Optional[DmmApiResponse]:
+    def search_actress_products(self, dmm_actress_id: int, limit: int = 10, offset: int = 1) -> Optional[DmmApiResponse]:
         """女優IDで商品を検索
         
         Args:
             dmm_actress_id (int): DMM女優ID
             limit (int): 取得件数（最大100）
+            offset (int): 検索開始位置（1から開始）
             
         Returns:
             Optional[DmmApiResponse]: API レスポンス、エラー時はNone
@@ -50,6 +51,7 @@ class DmmApiClient:
             "service": "digital", 
             "floor": "videoa",
             "hits": min(limit, 100),  # 最大100件制限
+            "offset": max(offset, 1),  # 1以上の値
             "sort": "rank",
             "output": "json",
             "article[0]": "actress",
@@ -57,7 +59,7 @@ class DmmApiClient:
         }
         
         try:
-            logger.info(f"DMM API商品検索開始 - 女優ID: {dmm_actress_id}, 件数: {limit}")
+            logger.info(f"DMM API商品検索開始 - 女優ID: {dmm_actress_id}, 件数: {limit}, オフセット: {offset}")
             
             response = requests.get(
                 self.BASE_URL,
