@@ -37,16 +37,17 @@ class TestFaceDatabase:
     @pytest.fixture
     def mock_face_database(self, temp_db_path, temp_index_path):
         """Create FaceDatabase with mocked paths"""
-        with patch.object(FaceDatabase, 'DB_PATH', temp_db_path), \
-             patch.object(FaceDatabase, 'INDEX_PATH', temp_index_path), \
-             patch('src.database.face_database.faiss') as mock_faiss:
+        with patch('src.database.face_index_database.faiss') as mock_faiss, \
+             patch('src.face.face_utils.get_face_encoding') as mock_get_encoding:
             
             # Mock FAISS index
             mock_index = MagicMock()
+            mock_index.ntotal = 0
             mock_faiss.IndexFlatL2.return_value = mock_index
             mock_faiss.read_index.return_value = mock_index
+            mock_get_encoding.return_value = None
             
-            db = FaceDatabase()
+            db = FaceDatabase(temp_db_path, temp_index_path)
             
             # Mock the cursor for testing
             db.cursor = MagicMock()

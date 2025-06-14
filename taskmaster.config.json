@@ -1,0 +1,58 @@
+{
+  "projectName": "SearchFace",
+  "projectDescription": "Face recognition and similarity search application built with Python FastAPI backend and Next.js frontend",
+  "environment": "development",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "docker-compose up",
+    "start:detached": "docker-compose up -d",
+    "stop": "docker-compose down",
+    "logs": "docker-compose logs -f",
+    "restart": "docker-compose restart",
+    "backend:shell": "docker-compose exec backend bash",
+    "backend:sync-db": "docker-compose exec backend python src/run_api.py --sync-db",
+    "backend:test": "docker-compose exec backend python -m pytest",
+    "backend:start": "docker-compose up backend",
+    "frontend:shell": "docker-compose exec frontend bash",
+    "frontend:format": "docker-compose exec frontend npm run format",
+    "frontend:lint": "docker-compose exec frontend npm run lint",
+    "frontend:check": "docker-compose exec frontend npm run check",
+    "frontend:test": "docker-compose exec frontend npm run test",
+    "frontend:test:ui": "docker-compose exec frontend npm run test:ui",
+    "frontend:start": "docker-compose up frontend",
+    "dev": "docker-compose up",
+    "test:all": "docker-compose exec backend python -m pytest && docker-compose exec frontend npm run test",
+    "check:quality": "docker-compose exec frontend npm run check",
+    "test:api": "curl -X GET 'http://localhost:10000/api/ranking?limit=5'"
+  },
+  "structure": {
+    "backend": "src/",
+    "frontend": "frontend/src/",
+    "tests": {
+      "backend": "tests/",
+      "frontend": "frontend/src/ (co-located)"
+    },
+    "docker": {
+      "compose": "docker-compose.yml",
+      "backend": "Dockerfile",
+      "frontend": "frontend/Dockerfile"
+    }
+  },
+  "stack": {
+    "backend": ["Python", "FastAPI", "face_recognition", "FAISS", "SQLite", "Turso"],
+    "frontend": ["Next.js 15", "React 19", "TypeScript", "Tailwind CSS"],
+    "testing": ["pytest", "vitest", "React Testing Library", "MSW"],
+    "tools": ["Docker", "docker-compose", "Biome"]
+  },
+  "ports": {
+    "backend": 10000,
+    "frontend": 3000
+  },
+  "notes": [
+    "This project runs in Docker containers",
+    "Frontend uses hot reload - no build step needed in development",
+    "Backend changes require container restart",
+    "Never run 'npm run build' in development",
+    "Follow CLAUDE.md for detailed development instructions"
+  ]
+}

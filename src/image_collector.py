@@ -138,6 +138,9 @@ def process_person_directory(collector: ImageCollector, person_dir: Path):
     Args:
         collector (ImageCollector): 画像収集クラスのインスタンス
         person_dir (Path): 人物ディレクトリのパス
+        
+    Returns:
+        bool: 処理の成功/失敗
     """
     logger.info(f"人物ディレクトリを処理中: {person_dir.name}")
     
@@ -150,15 +153,26 @@ def process_person_directory(collector: ImageCollector, person_dir: Path):
     
     if not base_image:
         logger.error(f"基準画像が見つかりません: {person_dir}")
-        return
+        return False
     
-    # 画像を収集
-    collected_count = collector.collect_images_for_person(
-        person_dir.name,
-        str(base_image)
-    )
-    
-    logger.info(f"収集完了: {person_dir.name} - {collected_count}枚の画像を収集")
+    try:
+        # 画像を収集
+        collected_count = collector.collect_images_for_person(
+            person_dir.name,
+            str(base_image)
+        )
+        
+        # 収集できた画像が0枚の場合はエラーとして扱う
+        if collected_count == 0:
+            logger.error(f"画像収集に失敗: {person_dir.name} - 0枚の画像を収集")
+            return False
+        
+        logger.info(f"収集完了: {person_dir.name} - {collected_count}枚の画像を収集")
+        return True
+        
+    except Exception as e:
+        logger.error(f"画像収集でエラーが発生: {person_dir.name} - {str(e)}")
+        return False
 
 def initialize_sync(base_dir):
     """すべてのディレクトリを処理済みとして記録（初回同期）
@@ -227,9 +241,13 @@ def process_new_directories(base_dir):
     collector = ImageCollector()
     for dir_name in new_directories:
         person_dir = base_path / dir_name
-        process_person_directory(collector, person_dir)
-        # 処理済みとして記録
-        dir_manager.add_processed_directory(dir_name)
+        success = process_person_directory(collector, person_dir)
+        # 成功した場合のみ処理済みとして記録
+        if success:
+            dir_manager.add_processed_directory(dir_name)
+            logger.info(f"処理済みとして記録: {dir_name}")
+        else:
+            logger.warning(f"処理に失敗したため記録しません: {dir_name}")
 
 def main():
     """メイン関数"""

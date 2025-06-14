@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import StructuredData from "@/components/StructuredData";
 import { Toaster } from "@/components/ui/sonner";
 import { AgeVerificationProvider } from "@/features/age-verification";
-import { isAgeVerified } from "@/lib/age-verification";
 import GoogleAnalytics from "@/features/analytics/google-analytics";
-import StructuredData from "@/components/StructuredData";
+import { isAgeVerified } from "@/lib/age-verification";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",

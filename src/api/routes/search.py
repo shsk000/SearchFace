@@ -71,7 +71,10 @@ async def search_face(
     # 類似顔の検索
     db = FaceDatabase()
     try:
+        search_start = time.time()
         results = db.search_similar_faces(face_encoding, top_k=top_k)
+        search_time = time.time() - search_start
+        logger.debug(f"類似顔検索時間: {search_time:.4f}秒")
 
         if not results:
             raise ImageValidationException(ErrorCode.NO_FACE_DETECTED)
@@ -96,14 +99,19 @@ async def search_face(
 
         # 検索結果がある場合、ランキングデータベースに記録（person_idベース）
         if search_results and results:
+            record_start = time.time()
             search_db = None
             ranking_db = None
             try:
                 # データベースインスタンスを関数内で初期化
+                db_init_start = time.time()
                 search_db = SearchDatabase()
                 ranking_db = RankingDatabase()
+                db_init_time = time.time() - db_init_start
+                logger.debug(f"検索・ランキングDB初期化時間: {db_init_time:.4f}秒")
 
                 # 検索履歴を記録（resultsはperson_idを含む元のデータ）
+                record_search_start = time.time()
                 session_id = search_db.record_search_results(
                     search_results=results,  # person_idを含む元のresults
                     metadata={
@@ -112,12 +120,17 @@ async def search_face(
                         'processing_time': processing_time
                     }
                 )
+                record_search_time = time.time() - record_search_start
+                logger.debug(f"検索履歴記録時間: {record_search_time:.4f}秒")
 
                 # 1位結果をランキングに反映
+                ranking_start = time.time()
                 winner = results[0]  # person_idを含む元のresults
                 ranking_db.update_ranking(
                     person_id=winner['person_id']
                 )
+                ranking_time = time.time() - ranking_start
+                logger.debug(f"ランキング更新時間: {ranking_time:.4f}秒")
 
                 logger.info(f"検索結果記録完了: セッション={session_id}, 1位={winner['name']}")
 
@@ -126,18 +139,30 @@ async def search_face(
                 logger.error(f"検索結果の記録に失敗（検索は成功）: {str(db_error)}")
             finally:
                 # 確実にデータベース接続を閉じる
+                record_close_start = time.time()
                 if search_db is not None:
                     search_db.close()
                 if ranking_db is not None:
                     ranking_db.close()
+                record_close_time = time.time() - record_close_start
+                logger.debug(f"検索・ランキングDB close時間: {record_close_time:.4f}秒")
+                
+                total_record_time = time.time() - record_start
+                logger.debug(f"検索結果記録処理総時間: {total_record_time:.4f}秒")
 
         logger.debug(f"results: {search_results}")
 
-        return SearchResponse(
+        # レスポンス生成
+        response_start = time.time()
+        response = SearchResponse(
             results=search_results,
             processing_time=processing_time,
             search_session_id=session_id or ""
         )
+        response_time = time.time() - response_start
+        logger.debug(f"レスポンス生成時間: {response_time:.4f}秒")
+        
+        return response
 
     except ImageValidationException:
         raise
@@ -145,7 +170,10 @@ async def search_face(
         logger.error(f"検索処理でエラーが発生: {str(e)}")
         raise ServerException(ErrorCode.INTERNAL_ERROR)
     finally:
+        close_start = time.time()
         db.close()
+        close_time = time.time() - close_start
+        logger.debug(f"データベースclose時間: {close_time:.4f}秒")
 
 @router.get("/search/{session_id}", response_model=SearchSessionResponse)
 async def get_search_session_results(session_id: str):
