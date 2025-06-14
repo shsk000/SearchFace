@@ -268,7 +268,7 @@ class PersonDatabase:
             return {
                 'person_id': row['person_id'],
                 'name': row['name'],
-                'image_path': row['base_image_path'],
+                'base_image_path': row['base_image_path'],
                 'dmm_actress_id': row['dmm_actress_id']
             }
         return None

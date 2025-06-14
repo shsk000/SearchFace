@@ -164,10 +164,10 @@ class DmmActressImageCollector:
             if not person_detail:
                 return None
             
-            # 基準画像パスをローカルパスに変換
-            base_image_path = self._convert_to_local_path(
+            # 基準画像パスを取得（URL形式）
+            base_image_path = self._get_base_image_path(
                 person_detail['name'], 
-                person_detail['image_path']
+                person_detail['base_image_path']
             )
             
             return ActressInfo(
@@ -180,33 +180,27 @@ class DmmActressImageCollector:
             logger.error(f"女優情報取得エラー: {str(e)}")
             return None
     
-    def _convert_to_local_path(self, actress_name: str, original_path: Optional[str] = None) -> Optional[str]:
-        """基準画像パスをローカルパスに変換
+    def _get_base_image_path(self, actress_name: str, original_path: Optional[str] = None) -> Optional[str]:
+        """基準画像パスを取得（URL形式をそのまま返す）
         
         Args:
             actress_name (str): 女優名
-            original_path (Optional[str]): 元のパス（URL形式の可能性あり）
+            original_path (Optional[str]): 元のパス（URL形式）
             
         Returns:
-            Optional[str]: ローカルファイルパス
+            Optional[str]: 基準画像パス（URL）
         """
         try:
-            # original_pathは将来の拡張用に残すが、現在は使用しない
-            _ = original_path  # 未使用変数警告を回避
+            # URL形式の場合はそのまま返す
+            if original_path and original_path.startswith(('http://', 'https://')):
+                return original_path
             
-            # ローカルパスを構築
-            local_path = Path(f"data/images/base/{actress_name}/base.jpg")
-            
-            # ファイル存在確認
-            if local_path.exists():
-                return str(local_path)
-            
-            # ファイルが存在しない場合はNone
-            logger.warning(f"基準画像ファイルが存在しません: {local_path}")
+            # URLでない場合はエラー
+            logger.warning(f"基準画像URLが無効です: actress={actress_name}, path={original_path}")
             return None
             
         except Exception as e:
-            logger.error(f"ローカルパス変換エラー: {str(e)}")
+            logger.error(f"基準画像パス取得エラー: {str(e)}")
             return None
     
     def _check_prerequisites(self, actress_info: ActressInfo) -> CollectionStatus:
@@ -224,8 +218,8 @@ class DmmActressImageCollector:
         if not actress_info.has_base_image:
             return CollectionStatus.NO_BASE_IMAGE
         
-        # 基準画像ファイルの存在確認
-        if not Path(actress_info.base_image_path).exists():
+        # 基準画像がURL形式でない場合はエラー
+        if not actress_info.base_image_path.startswith(('http://', 'https://')):
             return CollectionStatus.NO_BASE_IMAGE
         
         return CollectionStatus.SUCCESS

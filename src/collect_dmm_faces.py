@@ -264,10 +264,9 @@ class DmmFaceCollectionRunner:
             # DMM IDが設定されている女優のみ
             candidates = []
             for person in all_persons:
-                if person['dmm_actress_id']:
-                    # ローカル基準画像ファイル存在確認
-                    local_path = Path(f"data/images/base/{person['name']}/base.jpg")
-                    if local_path.exists():
+                if person['dmm_actress_id'] and person['base_image_path']:
+                    # URL形式の場合のみ候補に含める（ダウンロードは実際の処理時に行う）
+                    if person['base_image_path'].startswith(('http://', 'https://')):
                         candidates.append(person)
 
             return candidates
