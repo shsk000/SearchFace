@@ -119,7 +119,7 @@ class FAISSIndexRebuilder:
             return None, {}
     
     def rebuild_index(self, batch_size: int = 100, resume_from: Optional[int] = None) -> Dict[str, Any]:
-        """FAISSインデックスを直列処理で再構築
+        """FAISSインデックスを正しいindex_positionで再構築
         
         Args:
             batch_size (int): バッチサイズ
@@ -130,15 +130,6 @@ class FAISSIndexRebuilder:
         """
         start_time = time.time()
         
-        # 既存インデックスの処理
-        existing_index = None
-        if os.path.exists(self.index_path) and resume_from:
-            logger.info(f"既存のインデックスファイルから続行します: {self.index_path}")
-            existing_index = faiss.read_index(self.index_path)
-            logger.info(f"既存インデックス: {existing_index.ntotal}ベクトル")
-        elif os.path.exists(self.index_path):
-            logger.info(f"既存のインデックスファイルを上書きします: {self.index_path}")
-        
         # データベースから顔データを取得（直接SQLite接続を使用）
         logger.info("データベースから顔データを取得中...")
         import sqlite3
@@ -147,26 +138,15 @@ class FAISSIndexRebuilder:
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
-        # resume_fromが指定されている場合は、その位置以降のデータのみ取得
-        if resume_from:
-            cursor.execute("""
-                SELECT fi.image_id, fi.person_id, fi.image_path, fxi.index_position
-                FROM face_images fi
-                JOIN face_indexes fxi ON fi.image_id = fxi.image_id
-                WHERE fxi.index_position >= ?
-                ORDER BY fxi.index_position
-            """, (resume_from,))
-            logger.info(f"続行開始位置: index_position >= {resume_from}")
-        else:
-            cursor.execute("""
-                SELECT fi.image_id, fi.person_id, fi.image_path, fxi.index_position
-                FROM face_images fi
-                JOIN face_indexes fxi ON fi.image_id = fxi.image_id
-                ORDER BY fxi.index_position
-            """)
+        # 全データを取得してindex_positionでソート
+        cursor.execute("""
+            SELECT fi.image_id, fi.person_id, fi.image_path, fxi.index_position
+            FROM face_images fi
+            JOIN face_indexes fxi ON fi.image_id = fxi.image_id
+            ORDER BY fxi.index_position
+        """)
         
         all_face_data = cursor.fetchall()
-        
         total_count = len(all_face_data)
         self.stats['total'] = total_count
         
@@ -174,19 +154,24 @@ class FAISSIndexRebuilder:
         
         if total_count == 0:
             logger.warning("復旧対象のデータがありません")
+            conn.close()
             return self.stats
         
-        # FAISSインデックスを初期化または継続
-        if existing_index:
-            index = existing_index
-            logger.info(f"既存インデックスから継続: {index.ntotal}ベクトル")
-        else:
-            index = faiss.IndexFlatL2(128)  # face_recognitionは128次元
-            logger.info("新しいインデックスを作成")
+        # 最大index_positionを取得してFAISSインデックスのサイズを決定
+        max_index_position = max(row['index_position'] for row in all_face_data)
+        logger.info(f"最大index_position: {max_index_position}")
+        
+        # FAISSインデックスを初期化
+        index = faiss.IndexFlatL2(128)  # face_recognitionは128次元
+        logger.info("新しいインデックスを作成")
+        
+        # 位置別のベクトル配列を準備（max_index_position + 1のサイズ）
+        vectors = np.zeros((max_index_position + 1, 128), dtype=np.float32)
+        position_filled = np.zeros(max_index_position + 1, dtype=bool)
         
         os.makedirs(os.path.dirname(self.index_path), exist_ok=True)
         
-        # バッチ処理で段階的にインデックス構築
+        # バッチ処理で段階的にエンコーディングを取得
         offset = 0
         while offset < total_count:
             current_batch_size = min(batch_size, total_count - offset)
@@ -194,29 +179,44 @@ class FAISSIndexRebuilder:
             
             logger.info(f"バッチ処理中... ({offset + 1}-{offset + len(batch_data)}/{total_count})")
             
-            # バッチ開始前のエンコーディング数を記録
-            encodings_before = len(self.encodings)
-            
             # 直列処理でエンコーディングを取得
-            self._process_batch(batch_data)
-            
-            # このバッチで新しく取得されたエンコーディングをインデックスに追加
-            encodings_after = len(self.encodings)
-            new_encodings_count = encodings_after - encodings_before
-            
-            if new_encodings_count > 0:
-                # 新しいエンコーディングをFAISSインデックスに追加
-                new_encodings = np.array(self.encodings[encodings_before:encodings_after], dtype=np.float32)
-                index.add(new_encodings)
-                
-                # インデックスファイルを更新保存
-                faiss.write_index(index, self.index_path)
-                logger.info(f"インデックス更新: 新規追加 {new_encodings_count}件, 総ベクトル数: {index.ntotal}")
+            for face_data in batch_data:
+                try:
+                    image_path = face_data['image_path']
+                    index_position = face_data['index_position']
+                    
+                    encoding = face_utils.get_face_encoding(image_path)
+                    
+                    if encoding is not None:
+                        # 指定されたindex_positionに正確に配置
+                        vectors[index_position] = encoding
+                        position_filled[index_position] = True
+                        self._update_stats('success')
+                    else:
+                        logger.warning(f"エンコーディングの取得に失敗: {image_path}")
+                        self._update_stats('failed', {
+                            'image_id': face_data['image_id'],
+                            'image_path': image_path,
+                            'error': 'エンコーディングの取得に失敗'
+                        })
+                        
+                except Exception as e:
+                    logger.error(f"エンコーディング取得でエラー: {face_data['image_path']} - {str(e)}")
+                    self._update_stats('failed', {
+                        'image_id': face_data['image_id'],
+                        'image_path': face_data['image_path'],
+                        'error': f'例外エラー: {str(e)}'
+                    })
             
             offset += len(batch_data)
             
+            # 定期的に中間保存（1000件ごと）- 速度重視の場合はコメントアウト
+            # if offset % 1000 == 0:
+            #     logger.info(f"中間保存中... ({offset}件処理済み)")
+            #     self._save_intermediate_index(vectors, position_filled, max_index_position)
+            
             # メモリクリーンアップ（一定間隔で実行）
-            if offset % (batch_size * 5) == 0:
+            if offset % (batch_size * 10) == 0:  # 頻度を下げる（5→10）
                 gc.collect()
                 logger.debug(f"メモリクリーンアップを実行: {offset}件処理済み")
             
@@ -228,6 +228,34 @@ class FAISSIndexRebuilder:
                 logger.info(f"進捗: {offset}/{total_count} ({offset/total_count*100:.1f}%) - "
                           f"処理速度: {rate:.2f}件/秒 - 残り時間: {remaining_time:.0f}秒")
         
+        # 有効なベクトルのみをFAISSインデックスに追加（順序を保持）
+        logger.info("FAISSインデックスにベクトルを追加中...")
+        valid_vectors = []
+        valid_positions = []
+        
+        for pos in range(max_index_position + 1):
+            if position_filled[pos]:
+                valid_vectors.append(vectors[pos])
+                valid_positions.append(pos)
+        
+        if valid_vectors:
+            # 全ベクトルを一度に追加（順序が重要）
+            all_vectors = np.array(valid_vectors, dtype=np.float32)
+            
+            # 位置合わせのため、不足分を0ベクトルで埋める
+            final_vectors = np.zeros((max_index_position + 1, 128), dtype=np.float32)
+            for i, pos in enumerate(valid_positions):
+                final_vectors[pos] = all_vectors[i]
+            
+            # FAISSに全ベクトルを追加（0ベクトル含む）
+            index.add(final_vectors)
+            
+            logger.info(f"FAISSインデックス構築完了: {index.ntotal}ベクトル")
+            logger.info(f"有効ベクトル数: {len(valid_vectors)} / {max_index_position + 1}")
+        
+        # インデックスファイルを保存
+        faiss.write_index(index, self.index_path)
+        
         # 最終確認とログ出力
         logger.info("FAISSインデックスの構築が完了しました")
         if os.path.exists(self.index_path):
@@ -238,7 +266,6 @@ class FAISSIndexRebuilder:
         else:
             logger.error(f"インデックスファイルの保存に失敗: {self.index_path}")
             
-        logger.info(f"有効なエンコーディング数: {len(self.encodings)}")
         logger.info(f"処理成功: {self.stats['success']}件")
         logger.info(f"処理失敗: {self.stats['failed']}件")
         
@@ -248,6 +275,33 @@ class FAISSIndexRebuilder:
         
         conn.close()
         return self.stats
+    
+    def _save_intermediate_index(self, vectors: np.ndarray, position_filled: np.ndarray, max_index_position: int):
+        """中間状態でのFAISSインデックス保存"""
+        try:
+            # 現在までの有効なベクトルをFAISSインデックスに追加
+            temp_index = faiss.IndexFlatL2(128)
+            
+            # 位置合わせのため、全てのpositionを含む配列を作成
+            final_vectors = np.zeros((max_index_position + 1, 128), dtype=np.float32)
+            valid_count = 0
+            
+            for pos in range(max_index_position + 1):
+                if position_filled[pos]:
+                    final_vectors[pos] = vectors[pos]
+                    valid_count += 1
+            
+            # FAISSに追加
+            temp_index.add(final_vectors)
+            
+            # 中間ファイルとして保存
+            intermediate_path = self.index_path + ".tmp"
+            faiss.write_index(temp_index, intermediate_path)
+            
+            logger.info(f"中間保存完了: {valid_count}件のベクトル, ファイル: {intermediate_path}")
+            
+        except Exception as e:
+            logger.warning(f"中間保存でエラー: {str(e)}")  # エラーでも処理は続行
     
     def print_stats(self):
         """処理結果の統計情報を表示"""
