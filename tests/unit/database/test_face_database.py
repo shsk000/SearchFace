@@ -67,7 +67,7 @@ class TestFaceDatabase:
         """Test that tables are created correctly"""
         with patch.object(FaceDatabase, 'DB_PATH', temp_db_path), \
              patch.object(FaceDatabase, 'INDEX_PATH', temp_index_path), \
-             patch('src.database.face_database.faiss'):
+             patch('src.database.face_index_database.faiss'):
             
             db = FaceDatabase()
             
@@ -91,7 +91,7 @@ class TestFaceDatabase:
         mock_face_database.close()
 
     @pytest.mark.unit
-    @patch('src.database.face_database.faiss')
+    @patch('src.database.face_index_database.faiss')
     def test_load_index_existing(self, mock_faiss, temp_db_path, temp_index_path):
         """Test loading existing FAISS index"""
         # Create a dummy index file
@@ -113,7 +113,7 @@ class TestFaceDatabase:
             db.close()
 
     @pytest.mark.unit
-    @patch('src.database.face_database.faiss')
+    @patch('src.database.face_index_database.faiss')
     def test_load_index_new(self, mock_faiss, temp_db_path, temp_index_path):
         """Test creating new FAISS index when file doesn't exist"""
         # Ensure index file doesn't exist
@@ -210,7 +210,7 @@ class TestFaceDatabase:
         """Test FaceDatabase initialization and proper cleanup"""
         with patch.object(FaceDatabase, 'DB_PATH', temp_db_path), \
              patch.object(FaceDatabase, 'INDEX_PATH', temp_index_path), \
-             patch('src.database.face_database.faiss'):
+             patch('src.database.face_index_database.faiss'):
             
             # This should work without raising exceptions
             db = FaceDatabase()
@@ -222,7 +222,7 @@ class TestFaceDatabase:
         """Test database error handling"""
         with patch.object(FaceDatabase, 'DB_PATH', temp_db_path), \
              patch.object(FaceDatabase, 'INDEX_PATH', temp_index_path), \
-             patch('src.database.face_database.faiss'):
+             patch('src.database.face_index_database.faiss'):
             
             db = FaceDatabase()
             

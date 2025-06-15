@@ -332,3 +332,171 @@ class TestPersonDatabase:
         merged_metadata = profile['metadata']
         assert merged_metadata['initial'] == "data"
         assert merged_metadata['updated'] == "data"
+
+    def test_get_persons_with_base_image(self, person_db):
+        """base_image_pathを持つ人物取得のテスト"""
+        # テストデータ
+        person1_id = person_db.create_person("人物1")
+        person2_id = person_db.create_person("人物2")
+        person3_id = person_db.create_person("人物3")
+        
+        # base_image_pathを設定（直接SQLで更新）
+        person_db.cursor.execute(
+            "UPDATE persons SET base_image_path = ? WHERE person_id = ?",
+            ("http://example.com/image1.jpg", person1_id)
+        )
+        person_db.cursor.execute(
+            "UPDATE persons SET base_image_path = ? WHERE person_id = ?",
+            ("http://example.com/image2.jpg", person2_id)
+        )
+        # person3はbase_image_pathなし
+        person_db.conn.commit()
+        
+        # base_image_pathを持つ人物を取得
+        persons = person_db.get_persons_with_base_image()
+        
+        # 結果を確認
+        assert len(persons) == 2
+        person_ids = [person['person_id'] for person in persons]
+        assert person1_id in person_ids
+        assert person2_id in person_ids
+        assert person3_id not in person_ids
+        
+        # URLが正しく取得されることを確認
+        for person in persons:
+            assert person['base_image_path'] is not None
+            assert person['base_image_path'].startswith('http://')
+
+    def test_get_persons_with_base_image_exclude_registered(self, person_db):
+        """既に登録済みの人物を除外するテスト"""
+        # テストデータ
+        person1_id = person_db.create_person("人物1")
+        person2_id = person_db.create_person("人物2")
+        
+        # base_image_pathを設定
+        person_db.cursor.execute(
+            "UPDATE persons SET base_image_path = ? WHERE person_id = ?",
+            ("http://example.com/image1.jpg", person1_id)
+        )
+        person_db.cursor.execute(
+            "UPDATE persons SET base_image_path = ? WHERE person_id = ?",
+            ("http://example.com/image2.jpg", person2_id)
+        )
+        person_db.conn.commit()
+        
+        # person1をface_imagesに登録済みとして追加
+        person_db.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS face_images (
+                image_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                person_id INTEGER NOT NULL,
+                image_path TEXT NOT NULL,
+                image_hash TEXT NOT NULL UNIQUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                metadata TEXT
+            )
+        """)
+        person_db.cursor.execute(
+            "INSERT INTO face_images (person_id, image_path, image_hash) VALUES (?, ?, ?)",
+            (person1_id, "http://example.com/image1.jpg", "dummy_hash")
+        )
+        person_db.conn.commit()
+        
+        # 登録済み除外で取得
+        persons = person_db.get_persons_with_base_image(exclude_registered=True)
+        
+        # person1は除外され、person2のみ取得されることを確認
+        assert len(persons) == 1
+        assert persons[0]['person_id'] == person2_id
+
+    def test_get_persons_with_base_image_with_limit_offset(self, person_db):
+        """LIMIT/OFFSETを指定した取得のテスト"""
+        # テストデータ（5件）
+        person_ids = []
+        for i in range(5):
+            person_id = person_db.create_person(f"人物{i+1}")
+            person_ids.append(person_id)
+            person_db.cursor.execute(
+                "UPDATE persons SET base_image_path = ? WHERE person_id = ?",
+                (f"http://example.com/image{i+1}.jpg", person_id)
+            )
+        person_db.conn.commit()
+        
+        # LIMIT=2で取得
+        persons = person_db.get_persons_with_base_image(limit=2)
+        assert len(persons) == 2
+        
+        # LIMIT=2, OFFSET=2で取得
+        persons = person_db.get_persons_with_base_image(limit=2, offset=2)
+        assert len(persons) == 2
+        
+        # LIMIT=10で取得（実際は5件）
+        persons = person_db.get_persons_with_base_image(limit=10)
+        assert len(persons) == 5
+
+    def test_get_persons_with_base_image_count(self, person_db):
+        """base_image_pathを持つ人物の総数取得のテスト"""
+        # 初期状態では0件
+        count = person_db.get_persons_with_base_image_count()
+        assert count == 0
+        
+        # テストデータ
+        person1_id = person_db.create_person("人物1")
+        person2_id = person_db.create_person("人物2")
+        person3_id = person_db.create_person("人物3")
+        
+        # 2件にbase_image_pathを設定
+        person_db.cursor.execute(
+            "UPDATE persons SET base_image_path = ? WHERE person_id = ?",
+            ("http://example.com/image1.jpg", person1_id)
+        )
+        person_db.cursor.execute(
+            "UPDATE persons SET base_image_path = ? WHERE person_id = ?",
+            ("http://example.com/image2.jpg", person2_id)
+        )
+        person_db.conn.commit()
+        
+        # 総数を確認
+        count = person_db.get_persons_with_base_image_count()
+        assert count == 2
+
+    def test_get_persons_with_base_image_count_exclude_registered(self, person_db):
+        """登録済み除外での総数取得のテスト"""
+        # テストデータ
+        person1_id = person_db.create_person("人物1")
+        person2_id = person_db.create_person("人物2")
+        
+        # base_image_pathを設定
+        person_db.cursor.execute(
+            "UPDATE persons SET base_image_path = ? WHERE person_id = ?",
+            ("http://example.com/image1.jpg", person1_id)
+        )
+        person_db.cursor.execute(
+            "UPDATE persons SET base_image_path = ? WHERE person_id = ?",
+            ("http://example.com/image2.jpg", person2_id)
+        )
+        person_db.conn.commit()
+        
+        # face_imagesテーブルを作成してperson1を登録済みに
+        person_db.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS face_images (
+                image_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                person_id INTEGER NOT NULL,
+                image_path TEXT NOT NULL,
+                image_hash TEXT NOT NULL UNIQUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                metadata TEXT
+            )
+        """)
+        person_db.cursor.execute(
+            "INSERT INTO face_images (person_id, image_path, image_hash) VALUES (?, ?, ?)",
+            (person1_id, "http://example.com/image1.jpg", "dummy_hash")
+        )
+        person_db.conn.commit()
+        
+        # 除外なしでは2件
+        count = person_db.get_persons_with_base_image_count(exclude_registered=False)
+        assert count == 2
+        
+        # 除外ありでは1件
+        count = person_db.get_persons_with_base_image_count(exclude_registered=True)
+        assert count == 1

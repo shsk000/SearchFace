@@ -77,10 +77,24 @@ def detect_faces(image: np.ndarray) -> Tuple[List[np.ndarray], List[Tuple[int, i
             - 顔エンコーディングのリスト
             - 顔の位置（top, right, bottom, left）のリスト
     """
-    # 顔の位置を検出
+    # 顔の位置を検出（HOGモデル優先、失敗時はCNNモデル）
     logger.debug("顔の位置を検出しています...")
-    face_locations = face_recognition.face_locations(image)
-    logger.debug(f"検出された顔の数: {len(face_locations)}")
+    
+    # まずHOGモデルで試行（高速）
+    face_locations = face_recognition.face_locations(image, model='hog')
+    logger.debug(f"HOGモデル検出数: {len(face_locations)}")
+    
+    # HOGで検出できない場合はCNNモデルを試行（精度重視）
+    if len(face_locations) == 0:
+        logger.debug("HOGモデルで検出できませんでした。CNNモデルを試行します...")
+        try:
+            face_locations = face_recognition.face_locations(image, model='cnn')
+            logger.debug(f"CNNモデル検出数: {len(face_locations)}")
+        except Exception as e:
+            logger.warning(f"CNNモデルでの検出に失敗: {str(e)}")
+            face_locations = []
+    
+    logger.debug(f"最終的な検出された顔の数: {len(face_locations)}")
 
     # 顔のエンコーディングを取得
     logger.debug("顔のエンコーディングを取得しています...")

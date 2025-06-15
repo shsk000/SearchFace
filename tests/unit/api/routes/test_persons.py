@@ -1,20 +1,30 @@
+import pytest
 from unittest.mock import patch, MagicMock
-from fastapi.testclient import TestClient
-from fastapi import FastAPI
-from src.api.routes.persons import router
+try:
+    from fastapi.testclient import TestClient
+except ImportError:
+    from starlette.testclient import TestClient
 
-# テスト用のアプリケーションを作成
-app = FastAPI()
-app.include_router(router, prefix="/api")
-
-client = TestClient(app)
+from src.api.main import app
 
 class TestPersonsAPI:
     """人物詳細API のテストクラス"""
 
+    @pytest.fixture
+    def client(self):
+        """Test client fixture"""
+        # 互換性の問題を回避するためにより安全なパラメータで初期化
+        try:
+            return TestClient(app)
+        except TypeError:
+            # 新しいバージョンのhttpx/starlette用のフォールバック
+            import httpx
+            from starlette.applications import Starlette
+            return httpx.Client(app=app, base_url="http://testserver")
+
     @patch('src.api.routes.persons.RankingDatabase')
     @patch('src.api.routes.persons.FaceDatabase')
-    def test_get_person_detail_success(self, mock_face_db_class, mock_ranking_db_class):
+    def test_get_person_detail_success(self, mock_face_db_class, mock_ranking_db_class, client):
         """人物詳細取得の成功ケース"""
         # FaceDatabaseのモックセットアップ
         mock_face_db = MagicMock()
@@ -22,7 +32,7 @@ class TestPersonsAPI:
         mock_face_db.get_person_detail.return_value = {
             'person_id': 1,
             'name': 'テスト女優',
-            'image_path': 'data/images/base/test_actress.jpg'
+            'base_image_path': 'data/images/base/test_actress.jpg'
         }
 
         # RankingDatabaseのモックセットアップ
@@ -49,7 +59,7 @@ class TestPersonsAPI:
 
     @patch('src.api.routes.persons.RankingDatabase')
     @patch('src.api.routes.persons.FaceDatabase')
-    def test_get_person_detail_not_found(self, mock_face_db_class, mock_ranking_db_class):
+    def test_get_person_detail_not_found(self, mock_face_db_class, mock_ranking_db_class, client):
         """存在しない人物IDの場合のテスト"""
         # FaceDatabaseのモックセットアップ（人物が見つからない）
         mock_face_db = MagicMock()
@@ -77,7 +87,7 @@ class TestPersonsAPI:
 
     @patch('src.api.routes.persons.RankingDatabase')
     @patch('src.api.routes.persons.FaceDatabase')
-    def test_get_person_detail_with_none_image_path(self, mock_face_db_class, mock_ranking_db_class):
+    def test_get_person_detail_with_none_image_path(self, mock_face_db_class, mock_ranking_db_class, client):
         """画像パスがNoneの場合のテスト"""
         # FaceDatabaseのモックセットアップ
         mock_face_db = MagicMock()
@@ -85,7 +95,7 @@ class TestPersonsAPI:
         mock_face_db.get_person_detail.return_value = {
             'person_id': 2,
             'name': 'テスト女優2',
-            'image_path': None
+            'base_image_path': None
         }
 
         # RankingDatabaseのモックセットアップ

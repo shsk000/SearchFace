@@ -545,6 +545,85 @@ class PersonDatabase:
             'metadata': json.loads(row['metadata']) if row['metadata'] else None
         } for row in rows]
     
+    def get_persons_with_base_image(self, exclude_registered: bool = False, 
+                                   limit: Optional[int] = None, 
+                                   offset: Optional[int] = None) -> List[Dict[str, Any]]:
+        """base_image_pathを持つ人物を取得
+        
+        Args:
+            exclude_registered (bool): 既にface_imagesに同じbase_image_pathが登録済みの場合除外するか
+            limit (Optional[int]): 取得する件数の上限
+            offset (Optional[int]): 取得開始位置
+            
+        Returns:
+            List[Dict[str, Any]]: base_image_pathを持つ人物情報のリスト
+        """
+        query = """
+            SELECT p.person_id, p.name, p.dmm_actress_id, p.base_image_path, 
+                   p.created_at, p.metadata
+            FROM persons p
+            WHERE p.base_image_path IS NOT NULL 
+              AND p.base_image_path != ''
+        """
+        
+        # 既に登録済みの画像を除外する場合（画像URLベース）
+        if exclude_registered:
+            query += """
+              AND p.base_image_path NOT IN (
+                  SELECT DISTINCT image_path FROM face_images
+                  WHERE image_path = p.base_image_path
+              )
+            """
+        
+        query += " ORDER BY p.person_id"
+        
+        # LIMIT/OFFSET句を追加
+        if limit is not None:
+            query += f" LIMIT {limit}"
+            if offset is not None:
+                query += f" OFFSET {offset}"
+        
+        self.cursor.execute(query)
+        rows = self.cursor.fetchall()
+        
+        return [{
+            'person_id': row['person_id'],
+            'name': row['name'],
+            'dmm_actress_id': row['dmm_actress_id'],
+            'base_image_path': row['base_image_path'],
+            'created_at': row['created_at'],
+            'metadata': json.loads(row['metadata']) if row['metadata'] else None
+        } for row in rows]
+    
+    def get_persons_with_base_image_count(self, exclude_registered: bool = False) -> int:
+        """base_image_pathを持つ人物の総数を取得
+        
+        Args:
+            exclude_registered (bool): 既にface_imagesに同じbase_image_pathが登録済みの場合除外するか
+            
+        Returns:
+            int: base_image_pathを持つ人物の総数
+        """
+        query = """
+            SELECT COUNT(*) as count
+            FROM persons p
+            WHERE p.base_image_path IS NOT NULL 
+              AND p.base_image_path != ''
+        """
+        
+        # 既に登録済みの画像を除外する場合（画像URLベース）
+        if exclude_registered:
+            query += """
+              AND p.base_image_path NOT IN (
+                  SELECT DISTINCT image_path FROM face_images
+                  WHERE image_path = p.base_image_path
+              )
+            """
+        
+        self.cursor.execute(query)
+        row = self.cursor.fetchone()
+        return row['count'] if row else 0
+    
     def close(self):
         """データベース接続を閉じる"""
         if self.conn:
