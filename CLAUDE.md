@@ -22,6 +22,52 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - コーディングガイドライン、API仕様、データベース設計はすべて`.cursor/rules/`で管理
 - やり取りする上で明確になったルール、変更になったルールは都度`.cursor/rules/`に反映する
 
+### **🚨 CRITICAL DATABASE PROTECTION RULES 🚨**
+
+**絶対に守らなければならないルール:**
+
+1. **本番データベース保護 (ABSOLUTE RULE):**
+   - `data/` ディレクトリ内のSQLiteデータベース（`face_database.db`等）を**絶対に変更・更新してはいけない**
+   - `data/` ディレクトリ内のFAISSインデックス（`face.index`等）を**絶対に変更・更新してはいけない**
+   - テストコードで本番データベースに接続することを**絶対に禁止**
+
+2. **テスト実行時の必須要件:**
+   - 全てのテストは一時的なデータベースファイル（`/tmp/`配下）を使用すること
+   - `PersonDatabase`, `FaceIndexDatabase`の初期化時は必ず本番パスをモックすること
+   - `CREATE TABLE`, `INSERT`, `UPDATE`, `DELETE`等のDB変更操作は一時ファイルでのみ実行すること
+
+3. **違反時の対応:**
+   - 本番データベースへの接続・変更を検出した場合は**即座に処理を停止**すること
+   - テストコードが`data/`ディレクトリにアクセスしていることを発見した場合は**緊急修正**すること
+
+**このルールは例外なく適用され、どのような理由があっても違反してはいけません。**
+
+### **📋 Test Database Utilities (推奨)**
+
+安全なテストのため、以下のutility関数を使用してください：
+
+```python
+# tests/utils/database_test_utils.py
+from tests.utils.database_test_utils import (
+    isolated_test_database,     # 自動クリーンアップ付きテストDB
+    create_test_person_data,    # 安全なテストデータ作成
+    create_test_database_with_schema  # スキーマ付きテストDB作成
+)
+
+# 使用例：安全な統合テスト
+with isolated_test_database() as (conn, db_path):
+    person_id = create_test_person_data(conn, "Test Person", "/tmp/test.jpg")
+    # テスト実行...
+    # 自動的にクリーンアップされる
+```
+
+**利点:**
+- **単一ソース管理**: `sqlite_schema.sql`を使用してスキーマの重複管理を回避
+- **実装との一致保証**: プロジェクトの公式スキーマファイルを使用
+- **本番データベースアクセスの完全防止**: 全て一時ファイルで動作
+- **自動ファイルクリーンアップ**: メモリリークやディスク容量の問題を防止
+- **セキュリティチェック内蔵**: 本番パスアクセスを自動検出・拒否
+
 ## Project Overview
 
 SearchFace is a face recognition and similarity search application built with Python FastAPI backend and Next.js frontend. Users can upload images to find similar faces from a pre-built database using FAISS vector similarity search. The application uses Turso (SQLite-compatible cloud database) for data storage.

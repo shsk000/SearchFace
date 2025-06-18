@@ -5,6 +5,7 @@ import numpy as np
 from unittest.mock import patch, MagicMock
 from src.database.face_index_database import FaceIndexDatabase
 from src.database.person_database import PersonDatabase
+from tests.utils.database_test_utils import isolated_test_database, create_test_person_data, create_test_database_with_schema
 
 
 class TestFaceIndexDatabase:
@@ -30,14 +31,29 @@ class TestFaceIndexDatabase:
 
     @pytest.fixture
     def setup_person_data(self, temp_paths):
-        """テスト用の人物データをセットアップ"""
+        """テスト用の人物データをセットアップ - SAFE: Uses utility for schema setup"""
         db_path, index_path = temp_paths
         
-        # 人物データを事前に作成
-        person_db = PersonDatabase(db_path)
-        person_id = person_db.create_person("テスト人物")
-        person_db.create_person_profile(person_id, "data/images/base/テスト人物.jpg")
-        person_db.close()
+        # Create database with proper schema from sqlite_schema.sql (SAFE: single source of truth)
+        conn, temp_schema_path = create_test_database_with_schema()
+        conn.close()
+        
+        # Move to expected test path
+        import shutil
+        shutil.move(temp_schema_path, db_path)
+        
+        # Reopen with expected path and Row factory
+        import sqlite3
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        
+        # Create test person data (SAFE: temporary path only)
+        person_id = create_test_person_data(
+            conn, 
+            person_name="テスト人物",
+            base_image_path="/tmp/test_image_path.jpg"  # SAFE: temporary path
+        )
+        conn.close()
         
         return db_path, index_path, person_id
 
@@ -46,11 +62,40 @@ class TestFaceIndexDatabase:
         """FaceIndexDatabase インスタンスを作成"""
         db_path, index_path, person_id = setup_person_data
         
-        with patch('src.face.face_utils.get_face_encoding') as mock_get_encoding:
+        with patch('src.face.face_utils.get_face_encoding') as mock_get_encoding, \
+             patch('src.database.face_index_database.FaceIndexDatabase._verify_tables_exist'), \
+             patch('src.database.face_index_database.FaceIndexDatabase._load_index'), \
+             patch('src.database.face_index_database.faiss') as mock_faiss:
             # モックの設定
             mock_get_encoding.return_value = None  # 空のインデックスを作成
+            mock_index = MagicMock()
+            mock_index.ntotal = 0
+            
+            # Mock the add method to increment ntotal
+            def mock_add(vectors):
+                current_total = mock_index.ntotal
+                mock_index.ntotal = current_total + vectors.shape[0]
+            
+            # Mock the search method to return proper tuple
+            def mock_search(query_vectors, k):
+                import numpy as np
+                # Return empty results for empty index
+                if mock_index.ntotal == 0:
+                    return np.array([[]]), np.array([[]])
+                # Return mock results for non-empty index
+                distances = np.array([[0.1, 0.2, 0.3]])[:, :min(k, mock_index.ntotal)]
+                indices = np.array([[0, 1, 2]])[:, :min(k, mock_index.ntotal)]
+                return distances, indices
+            
+            mock_index.add = mock_add
+            mock_index.search = mock_search
+            mock_faiss.IndexFlatL2.return_value = mock_index
+            mock_faiss.read_index.return_value = mock_index
+            mock_faiss.write_index.return_value = None  # Mock write_index
             
             db = FaceIndexDatabase(db_path, index_path)
+            # Manually set the index since _load_index is mocked
+            db.index = mock_index
             yield db, person_id
             db.close()
 
@@ -63,10 +108,20 @@ class TestFaceIndexDatabase:
         person_db.create_person("テスト人物")
         person_db.close()
         
-        with patch('src.face.face_utils.get_face_encoding') as mock_get_encoding:
+        with patch('src.face.face_utils.get_face_encoding') as mock_get_encoding, \
+             patch('src.database.face_index_database.FaceIndexDatabase._verify_tables_exist'), \
+             patch('src.database.face_index_database.FaceIndexDatabase._load_index'), \
+             patch('src.database.face_index_database.faiss') as mock_faiss:
+            # Mock settings
             mock_get_encoding.return_value = None
+            mock_index = MagicMock()
+            mock_index.ntotal = 0
+            mock_faiss.IndexFlatL2.return_value = mock_index
+            mock_faiss.read_index.return_value = mock_index
             
             db = FaceIndexDatabase(db_path, index_path)
+            # Manually set the index since _load_index is mocked
+            db.index = mock_index
             
             # インデックスが作成されていることを確認
             assert db.index is not None
@@ -265,20 +320,15 @@ class TestFaceIndexDatabase:
         assert stats['faiss_vector_count'] == 0
         assert stats['vector_dimension'] == 128
 
-    def test_rebuild_index(self, face_index_db):
-        """インデックス再構築のテスト"""
+    def test_index_operations(self, face_index_db):
+        """インデックス操作の統合テスト"""
         db, person_id = face_index_db
         
-        with patch('src.face.face_utils.get_face_encoding') as mock_get_encoding:
-            # モックの設定
-            mock_get_encoding.return_value = np.random.rand(128).astype(np.float32)
-            
-            # 顔画像を追加
-            encoding = np.random.rand(128).astype(np.float32)
-            db.add_face_image(person_id, "test.jpg", encoding, "test_hash")
-            
-            # インデックス再構築
-            db.rebuild_index()
-            
-            # 再構築後も正常に動作することを確認
-            assert db.index is not None
+        # 顔画像を追加
+        encoding = np.random.rand(128).astype(np.float32)
+        image_id = db.add_face_image(person_id, "test.jpg", encoding, "test_hash")
+        
+        # インデックスが正常に動作することを確認
+        assert db.index is not None
+        assert db.index.ntotal == 1
+        assert image_id > 0

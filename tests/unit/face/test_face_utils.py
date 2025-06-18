@@ -216,7 +216,7 @@ class TestFaceUtils:
             encodings, locations = face_utils.detect_faces(mock_image)
             
             # Verify function calls
-            mock_locations_func.assert_called_once_with(mock_image)
+            mock_locations_func.assert_called_once_with(mock_image, model='hog')
             mock_encodings_func.assert_called_once_with(mock_image, mock_locations)
             
             # Verify results
