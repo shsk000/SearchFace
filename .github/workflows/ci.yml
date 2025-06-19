@@ -17,6 +17,10 @@ jobs:
         pip install --upgrade pip
         pip install -r requirements.txt
 
+    - name: Create data directory for tests
+      run: |
+        mkdir -p data
+
     - name: Run backend tests
       run: |
         timeout 300 python -m pytest tests/ -v --tb=short --no-cov --timeout=60 --disable-warnings

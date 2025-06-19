@@ -27,7 +27,7 @@ class TestSearchDatabase:
         with patch.dict(os.environ, {
             'TURSO_DATABASE_URL': 'libsql://test.turso.io',
             'TURSO_AUTH_TOKEN': 'test-token'
-        }):
+        }, clear=False):
             db = SearchDatabase()
             yield db
 
@@ -37,7 +37,7 @@ class TestSearchDatabase:
         with patch.dict(os.environ, {
             'TURSO_DATABASE_URL': 'libsql://test.turso.io',
             'TURSO_AUTH_TOKEN': 'test-token'
-        }):
+        }, clear=False):
             db = SearchDatabase()
             
             assert db.db_url == 'libsql://test.turso.io'
