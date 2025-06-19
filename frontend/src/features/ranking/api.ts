@@ -11,7 +11,7 @@ export async function getRankingData(): Promise<RankingResponse | null> {
     // 環境変数からAPI URLを取得（デプロイ環境とローカル環境で異なる）
     const API_BASE_URL = process.env.API_BASE_URL || "http://backend:10000";
     const response = await fetch(`${API_BASE_URL}/api/ranking?limit=5`, {
-      next: { revalidate: 3600 }, // 1時間キャッシュ
+      next: { revalidate: 120 }, // 2分キャッシュ
     });
 
     if (!response.ok) {
