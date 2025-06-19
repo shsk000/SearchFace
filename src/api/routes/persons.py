@@ -41,7 +41,7 @@ async def get_person_detail(person_id: int):
         return PersonDetailResponse(
             person_id=person_data['person_id'],
             name=person_data['name'],
-            image_path=person_data['image_path'] or "",
+            image_path=person_data['base_image_path'] or "",
             search_count=search_count
         )
         

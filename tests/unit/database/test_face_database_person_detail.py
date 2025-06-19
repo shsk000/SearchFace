@@ -8,6 +8,7 @@ import tempfile
 import os
 
 from src.database.face_database import FaceDatabase
+from tests.utils.database_test_utils import isolated_test_database, create_test_person_data
 
 
 class TestFaceDatabasePersonDetail:
@@ -38,7 +39,8 @@ class TestFaceDatabasePersonDetail:
         """Create FaceDatabase with mocked paths and row factory enabled"""
         with patch.object(FaceDatabase, 'DB_PATH', temp_db_path), \
              patch.object(FaceDatabase, 'INDEX_PATH', temp_index_path), \
-             patch('src.database.face_database.faiss') as mock_faiss:
+             patch('src.database.face_index_database.faiss') as mock_faiss, \
+             patch('src.database.face_index_database.FaceIndexDatabase._verify_tables_exist'):
             
             # Mock FAISS index
             mock_index = MagicMock()
@@ -47,8 +49,8 @@ class TestFaceDatabasePersonDetail:
             
             db = FaceDatabase()
             
-            # Mock the cursor for testing
-            db.cursor = MagicMock()
+            # Mock PersonDatabase for testing since FaceDatabase delegates to it
+            db.person_db = MagicMock()
             
             yield db
             db.close()
@@ -56,16 +58,15 @@ class TestFaceDatabasePersonDetail:
     @pytest.mark.unit
     def test_get_person_detail_success_with_dict_access(self, mock_face_database):
         """Test get_person_detail method with dict-style column access"""
-        # Create a sqlite3.Row-like mock object
-        mock_row = MagicMock()
-        mock_row.__getitem__.side_effect = lambda key: {
+        # Mock the expected return data
+        expected_result = {
             'person_id': 1,
             'name': 'Test Person',
             'base_image_path': '/path/to/base/image.jpg'
-        }[key]
+        }
         
-        # Mock the cursor fetchone to return our mock row
-        mock_face_database.cursor.fetchone.return_value = mock_row
+        # Mock PersonDatabase.get_person_detail directly since FaceDatabase delegates to it
+        mock_face_database.person_db.get_person_detail.return_value = expected_result
         
         # Test the method
         result = mock_face_database.get_person_detail(1)
@@ -74,19 +75,16 @@ class TestFaceDatabasePersonDetail:
         assert result is not None
         assert result['person_id'] == 1
         assert result['name'] == 'Test Person'
-        assert result['image_path'] == '/path/to/base/image.jpg'
+        assert result['base_image_path'] == '/path/to/base/image.jpg'
         
-        # Verify the SQL query was executed correctly
-        mock_face_database.cursor.execute.assert_called_once()
-        sql_call = mock_face_database.cursor.execute.call_args[0][0]
-        assert 'SELECT p.person_id, p.name, pp.base_image_path' in sql_call
-        assert 'WHERE p.person_id = ?' in sql_call
+        # Verify PersonDatabase.get_person_detail was called correctly
+        mock_face_database.person_db.get_person_detail.assert_called_once_with(1)
 
     @pytest.mark.unit
     def test_get_person_detail_not_found_with_dict_access(self, mock_face_database):
         """Test get_person_detail method when person is not found"""
-        # Mock the cursor fetchone to return None
-        mock_face_database.cursor.fetchone.return_value = None
+        # Mock PersonDatabase.get_person_detail to return None
+        mock_face_database.person_db.get_person_detail.return_value = None
         
         # Test the method
         result = mock_face_database.get_person_detail(999)
@@ -94,28 +92,21 @@ class TestFaceDatabasePersonDetail:
         # Verify the result
         assert result is None
         
-        # Verify the SQL query was executed correctly
-        mock_face_database.cursor.execute.assert_called_once_with(
-            """
-            SELECT p.person_id, p.name, pp.base_image_path
-            FROM persons p
-            LEFT JOIN person_profiles pp ON p.person_id = pp.person_id
-            WHERE p.person_id = ?
-        """, (999,))
+        # Verify PersonDatabase.get_person_detail was called correctly
+        mock_face_database.person_db.get_person_detail.assert_called_once_with(999)
 
     @pytest.mark.unit
     def test_get_person_detail_with_none_image_path_dict_access(self, mock_face_database):
         """Test get_person_detail method when base_image_path is None"""
-        # Create a sqlite3.Row-like mock object with None image path
-        mock_row = MagicMock()
-        mock_row.__getitem__.side_effect = lambda key: {
+        # Mock the expected return data with None image path
+        expected_result = {
             'person_id': 2,
             'name': 'Person Without Image',
             'base_image_path': None
-        }[key]
+        }
         
-        # Mock the cursor fetchone to return our mock row
-        mock_face_database.cursor.fetchone.return_value = mock_row
+        # Mock PersonDatabase.get_person_detail to return expected result
+        mock_face_database.person_db.get_person_detail.return_value = expected_result
         
         # Test the method
         result = mock_face_database.get_person_detail(2)
@@ -124,14 +115,18 @@ class TestFaceDatabasePersonDetail:
         assert result is not None
         assert result['person_id'] == 2
         assert result['name'] == 'Person Without Image'
-        assert result['image_path'] is None
+        assert result['base_image_path'] is None
+        
+        # Verify PersonDatabase.get_person_detail was called correctly
+        mock_face_database.person_db.get_person_detail.assert_called_once_with(2)
 
     @pytest.mark.unit  
     def test_row_factory_enabled_in_init(self, temp_db_path, temp_index_path):
         """Test that sqlite3.Row factory is properly set during initialization"""
         with patch.object(FaceDatabase, 'DB_PATH', temp_db_path), \
              patch.object(FaceDatabase, 'INDEX_PATH', temp_index_path), \
-             patch('src.database.face_database.faiss'):
+             patch('src.database.face_index_database.faiss'), \
+             patch('src.database.face_index_database.FaceIndexDatabase._verify_tables_exist'):
             
             db = FaceDatabase()
             
@@ -143,34 +138,39 @@ class TestFaceDatabasePersonDetail:
     @pytest.mark.unit
     def test_get_person_detail_integration_with_real_row_factory(self, temp_db_path, temp_index_path):
         """Integration test with real sqlite3.Row to verify dict-style access works"""
+        # CRITICAL: Mock PersonDatabase to prevent production DB access
         with patch.object(FaceDatabase, 'DB_PATH', temp_db_path), \
              patch.object(FaceDatabase, 'INDEX_PATH', temp_index_path), \
-             patch('src.database.face_database.faiss'):
+             patch('src.database.face_index_database.faiss'), \
+             patch('src.database.face_index_database.FaceIndexDatabase._verify_tables_exist'), \
+             patch('src.database.person_database.PersonDatabase._create_tables'):
             
-            db = FaceDatabase()
-            
-            # Insert test data directly into the database
-            db.cursor.execute(
-                "INSERT INTO persons (person_id, name) VALUES (?, ?)",
-                (1, 'Integration Test Person')
-            )
-            db.cursor.execute(
-                "INSERT INTO person_profiles (person_id, base_image_path) VALUES (?, ?)",
-                (1, '/integration/test/path.jpg')
-            )
-            db.conn.commit()
-            
-            # Test the method with real data
-            result = db.get_person_detail(1)
-            
-            # Verify the result
-            assert result is not None
-            assert result['person_id'] == 1
-            assert result['name'] == 'Integration Test Person'
-            assert result['image_path'] == '/integration/test/path.jpg'
-            
-            # Test with non-existent person
-            result_none = db.get_person_detail(999)
-            assert result_none is None
-            
-            db.close()
+            # Use test utility for safe database creation with proper schema
+            with isolated_test_database() as (test_conn, test_db_path):
+                # Create test person data using utility function
+                person_id = create_test_person_data(
+                    test_conn, 
+                    person_name='Integration Test Person',
+                    base_image_path='/tmp/integration_test_path.jpg'  # SAFE: tmp path
+                )
+                
+                # Create FaceDatabase and replace its connection with test connection
+                db = FaceDatabase()
+                db.person_db.conn = test_conn
+                db.person_db.cursor = test_conn.cursor()
+                
+                # Test the method with real data
+                result = db.get_person_detail(person_id)
+                
+                # Verify the result
+                assert result is not None
+                assert result['person_id'] == person_id
+                assert result['name'] == 'Integration Test Person'
+                assert result['base_image_path'] == '/tmp/integration_test_path.jpg'
+                
+                # Test with non-existent person
+                result_none = db.get_person_detail(999)
+                assert result_none is None
+                
+                # FaceDatabase cleanup (test_conn auto-closed by context manager)
+                db.close()

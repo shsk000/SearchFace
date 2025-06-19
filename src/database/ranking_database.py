@@ -103,9 +103,8 @@ class RankingDatabase:
             
             # 人物名とベース画像パスを取得
             local_cursor.execute("""
-                SELECT p.name, pp.base_image_path
+                SELECT p.name, p.base_image_path
                 FROM persons p
-                LEFT JOIN person_profiles pp ON p.person_id = pp.person_id
                 WHERE p.person_id = ?
             """, (person_id,))
             

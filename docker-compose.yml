@@ -12,6 +12,7 @@ services:
       - ./data:/app/data
       - ./src:/app/src
       - ./tests:/app/tests
+      - ./sqlite_schema.sql:/app/sqlite_schema.sql
       - ./.env:/etc/secrets/.env
     environment:
       - DEBUG=${DEBUG:-false}  # デフォルトはfalse

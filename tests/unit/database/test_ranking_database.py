@@ -25,7 +25,7 @@ class TestRankingDatabase:
         with patch.dict(os.environ, {
             'TURSO_DATABASE_URL': 'libsql://test.turso.io',
             'TURSO_AUTH_TOKEN': 'test-token'
-        }):
+        }, clear=False):
             db = RankingDatabase()
             yield db
 
@@ -35,7 +35,7 @@ class TestRankingDatabase:
         with patch.dict(os.environ, {
             'TURSO_DATABASE_URL': 'libsql://test.turso.io',
             'TURSO_AUTH_TOKEN': 'test-token'
-        }):
+        }, clear=False):
             db = RankingDatabase()
             
             assert db.db_url == 'libsql://test.turso.io'
