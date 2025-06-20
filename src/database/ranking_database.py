@@ -2,6 +2,7 @@ import json
 import os
 from typing import List, Dict, Any, Optional
 from datetime import datetime
+import time
 from src.utils import log_utils
 import libsql_experimental as libsql
 
@@ -25,7 +26,12 @@ class RankingDatabase:
 
         # Embedded Replicas方式で接続
         self.conn = libsql.connect("ranking.db", sync_url=self.db_url, auth_token=self.db_token)
+
+        logger.info("Turso ranking DBへの初回同期を開始します...")
+        sync_start_time = time.time()
         self.conn.sync()  # 初回同期
+        sync_duration = time.time() - sync_start_time
+        logger.info(f"Turso ranking DBへの初回同期が完了しました。所要時間: {sync_duration:.4f}秒")
 
     def update_ranking(self, person_id: int) -> None:
         """ランキングテーブルを更新（1位結果用）
@@ -82,7 +88,7 @@ class RankingDatabase:
             List[Dict[str, Any]]: ランキング結果
         """
         import sqlite3
-        
+
         # Tursoからランキングデータを取得
         result = self.conn.execute("""
             SELECT person_id, win_count, last_win_timestamp
@@ -92,24 +98,24 @@ class RankingDatabase:
         """, (limit,))
 
         ranking_data = result.fetchall()
-        
+
         # ローカルSQLiteから人物情報を取得
         local_conn = sqlite3.connect("data/face_database.db")
         local_cursor = local_conn.cursor()
-        
+
         results = []
         for idx, row in enumerate(ranking_data):
             person_id = row[0]
-            
+
             # 人物名とベース画像パスを取得
             local_cursor.execute("""
                 SELECT p.name, p.base_image_path
                 FROM persons p
                 WHERE p.person_id = ?
             """, (person_id,))
-            
+
             person_data = local_cursor.fetchone()
-            
+
             if person_data:
                 results.append({
                     'rank': idx + 1,
@@ -119,7 +125,7 @@ class RankingDatabase:
                     'last_win_date': row[2],
                     'image_path': person_data[1]  # ベース画像パス
                 })
-        
+
         local_conn.close()
         return results
 
@@ -130,7 +136,7 @@ class RankingDatabase:
             Dict[str, Any]: 統計情報
         """
         import sqlite3
-        
+
         # 総人物数（ランキングに登録されている）
         result = self.conn.execute("SELECT COUNT(*) FROM person_ranking")
         total_persons = result.fetchall()[0][0]
@@ -147,23 +153,23 @@ class RankingDatabase:
             LIMIT 1
         """)
         rows = result.fetchall()
-        
+
         top_person = None
         if rows:
             # ローカルSQLiteから人物名を取得
             local_conn = sqlite3.connect("data/face_database.db")
             local_cursor = local_conn.cursor()
-            
+
             local_cursor.execute("SELECT name FROM persons WHERE person_id = ?", (rows[0][0],))
             person_data = local_cursor.fetchone()
-            
+
             if person_data:
                 top_person = {
                     'person_id': rows[0][0],
                     'name': person_data[0],
                     'win_count': rows[0][1]
                 }
-            
+
             local_conn.close()
 
         return {
@@ -174,10 +180,10 @@ class RankingDatabase:
 
     def get_person_search_count(self, person_id: int) -> int:
         """特定の人物の検索回数を取得する
-        
+
         Args:
             person_id (int): 人物ID
-            
+
         Returns:
             int: 検索回数（レコードが存在しない場合は0を返す）
         """
@@ -186,12 +192,12 @@ class RankingDatabase:
                 "SELECT win_count FROM person_ranking WHERE person_id = ?",
                 (person_id,)
             )
-            
+
             rows = result.fetchall()
             if rows:
                 return rows[0][0]
             return 0
-            
+
         except Exception as e:
             logger.error(f"検索回数の取得に失敗: {str(e)}")
             return 0
