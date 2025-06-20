@@ -1,6 +1,7 @@
 import json
 import os
 import uuid
+import time
 from typing import List, Dict, Any, Optional
 from src.utils import log_utils
 import libsql_experimental as libsql
@@ -25,7 +26,12 @@ class SearchDatabase:
 
         # Embedded Replicas方式で接続
         self.conn = libsql.connect("search_history.db", sync_url=self.db_url, auth_token=self.db_token)
+
+        logger.info("Turso search_history DBへの初回同期を開始します...")
+        sync_start_time = time.time()
         self.conn.sync()  # 初回同期
+        sync_duration = time.time() - sync_start_time
+        logger.info(f"Turso search_history DBへの初回同期が完了しました。所要時間: {sync_duration:.4f}秒")
 
 
     def record_search_results(self, search_results: List[Dict[str, Any]],
@@ -97,16 +103,16 @@ class SearchDatabase:
             """, (limit,))
 
         rows = result.fetchall()
-        
+
         # 人物IDリストを抽出
         person_ids = list(set(row[3] for row in rows))  # 重複除去
-        
+
         # ローカルSQLiteから人物名を取得
         import sqlite3
         import os
-        
+
         db_path = os.path.abspath("data/face_database.db")
-        
+
         if os.path.exists(db_path) and person_ids:
             try:
                 local_conn = sqlite3.connect(db_path)
@@ -168,16 +174,16 @@ class SearchDatabase:
             """, (session_id,))
 
             detail_rows = detail_result.fetchall()
-            
+
             # 人物IDリストを抽出
             session_person_ids = [row[1] for row in detail_rows]
-            
+
             # ローカルSQLiteから人物名を取得
             import sqlite3
             import os
-            
+
             db_path = os.path.abspath("data/face_database.db")
-            
+
             if os.path.exists(db_path) and session_person_ids:
                 try:
                     local_conn = sqlite3.connect(db_path)
@@ -277,18 +283,18 @@ class SearchDatabase:
         """, (session_id,))
 
         turso_results = results_query.fetchall()
-        
+
         # 人物IDリストを抽出
         person_ids = [row[1] for row in turso_results]
-        
+
         # ローカルSQLiteから人物名を取得
         import sqlite3
         import os
-        
+
         # 絶対パスでローカルSQLiteに接続
         db_path = os.path.abspath("data/face_database.db")
         logger.info(f"ローカルSQLite接続先: {db_path}")
-        
+
         if not os.path.exists(db_path):
             logger.error(f"ローカルSQLiteファイルが見つかりません: {db_path}")
             person_names = {}
@@ -296,7 +302,7 @@ class SearchDatabase:
             try:
                 local_conn = sqlite3.connect(db_path)
                 local_cursor = local_conn.cursor()
-                
+
                 if person_ids:
                     placeholders = ",".join("?" * len(person_ids))
                     query = f"SELECT person_id, name FROM persons WHERE person_id IN ({placeholders})"
@@ -305,10 +311,10 @@ class SearchDatabase:
                     person_names = {row[0]: row[1] for row in rows}
                 else:
                     person_names = {}
-                    
+
                 local_conn.close()
                 logger.info(f"人物名を取得しました: {len(person_names)}件")
-                
+
             except Exception as e:
                 logger.error(f"ローカルSQLiteクエリエラー: {str(e)}")
                 person_names = {}
@@ -351,13 +357,13 @@ class SearchDatabase:
         rows = result.fetchall()
         if rows:
             person_id = rows[0][0]
-            
+
             # ローカルSQLiteから人物名を取得
             import sqlite3
             import os
-            
+
             db_path = os.path.abspath("data/face_database.db")
-            
+
             if os.path.exists(db_path):
                 try:
                     local_conn = sqlite3.connect(db_path)
@@ -371,7 +377,7 @@ class SearchDatabase:
                     name = f"Unknown({person_id})"
             else:
                 name = f"Unknown({person_id})"
-            
+
             return {
                 'person_id': person_id,
                 'name': name
