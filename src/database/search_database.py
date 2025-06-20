@@ -12,27 +12,15 @@ logger = log_utils.get_logger(__name__)
 class SearchDatabase:
     """検索履歴を管理するデータベースクラス"""
 
-    def __init__(self):
+    def __init__(self, conn: libsql.Connection):
         """検索履歴データベースの初期化
 
         Args:
-            db_url (str): TursoデータベースURL（環境変数から取得）
+            conn (libsql.Connection): データベース接続オブジェクト
         """
-        self.db_url = os.getenv('TURSO_DATABASE_URL')
-        self.db_token = os.getenv('TURSO_AUTH_TOKEN')
-
-        if not self.db_url:
-            raise ValueError("TURSO_DATABASE_URL環境変数が設定されていません")
-
-        # Embedded Replicas方式で接続
-        self.conn = libsql.connect("search_history.db", sync_url=self.db_url, auth_token=self.db_token)
-
-        logger.info("Turso search_history DBへの初回同期を開始します...")
-        sync_start_time = time.time()
-        self.conn.sync()  # 初回同期
-        sync_duration = time.time() - sync_start_time
-        logger.info(f"Turso search_history DBへの初回同期が完了しました。所要時間: {sync_duration:.4f}秒")
-
+        if conn is None:
+            raise ValueError("データベース接続が提供されていません")
+        self.conn = conn
 
     def record_search_results(self, search_results: List[Dict[str, Any]],
                             metadata: Optional[Dict] = None) -> str:
@@ -73,7 +61,7 @@ class SearchDatabase:
 
         except Exception as e:
             logger.error(f"検索結果の記録に失敗: {str(e)}")
-            raise
+            return None
 
     def get_search_history(self, limit: int = 50, person_id: int = None) -> List[Dict[str, Any]]:
         """検索履歴を取得
@@ -385,5 +373,5 @@ class SearchDatabase:
         return None
 
     def close(self):
-        """データベース接続を閉じる"""
-        pass  # libsql_clientでは明示的なclose不要
+        """データベース接続を閉じる (何もしない、接続管理は外部で行う)"""
+        pass

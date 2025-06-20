@@ -182,7 +182,4 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
-data/images
-data/face_database.db
-data/face.index
-data/processed_directories.json
+data

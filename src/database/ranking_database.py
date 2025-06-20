@@ -12,26 +12,15 @@ logger = log_utils.get_logger(__name__)
 class RankingDatabase:
     """ランキング集計を管理するデータベースクラス"""
 
-    def __init__(self):
+    def __init__(self, conn: libsql.Connection):
         """ランキングデータベースの初期化
 
         Args:
-            db_url (str): TursoデータベースURL（環境変数から取得）
+            conn (libsql.Connection): データベース接続オブジェクト
         """
-        self.db_url = os.getenv('TURSO_DATABASE_URL')
-        self.db_token = os.getenv('TURSO_AUTH_TOKEN')
-
-        if not self.db_url:
-            raise ValueError("TURSO_DATABASE_URL環境変数が設定されていません")
-
-        # Embedded Replicas方式で接続
-        self.conn = libsql.connect("ranking.db", sync_url=self.db_url, auth_token=self.db_token)
-
-        logger.info("Turso ranking DBへの初回同期を開始します...")
-        sync_start_time = time.time()
-        self.conn.sync()  # 初回同期
-        sync_duration = time.time() - sync_start_time
-        logger.info(f"Turso ranking DBへの初回同期が完了しました。所要時間: {sync_duration:.4f}秒")
+        if conn is None:
+            raise ValueError("データベース接続が提供されていません")
+        self.conn = conn
 
     def update_ranking(self, person_id: int) -> None:
         """ランキングテーブルを更新（1位結果用）
@@ -203,5 +192,5 @@ class RankingDatabase:
             return 0
 
     def close(self):
-        """データベース接続を閉じる"""
-        pass  # libsql_clientでは明示的なclose不要
+        """データベース接続を閉じる (何もしない、接続管理は外部で行う)"""
+        pass
