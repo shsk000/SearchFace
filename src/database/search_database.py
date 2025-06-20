@@ -26,8 +26,13 @@ class SearchDatabase:
             auth_token=self.db_token
         )
         
-        # 接続の同期
-        self.conn.sync()
+        # 接続の同期（リモートモードでは不要のため無視）
+        try:
+            self.conn.sync()
+            logger.debug("データベース同期が完了しました")
+        except Exception as e:
+            # リモートモードでは sync() がサポートされていない（データは直接リモートに保存される）
+            logger.debug(f"リモートモードのため sync() をスキップしました: {str(e)}")
 
     def record_search_results(self, search_results: List[Dict[str, Any]],
                             metadata: Optional[Dict] = None) -> str:
@@ -60,7 +65,11 @@ class SearchDatabase:
                 ))
 
             self.conn.commit()
-            self.conn.sync()
+            try:
+                self.conn.sync()
+            except Exception:
+                # リモートモードでは sync() がサポートされていないため無視
+                pass
 
             logger.info(f"検索結果を記録しました: {len(search_results)}件 (セッション: {search_session_id})")
 
