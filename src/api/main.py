@@ -4,12 +4,28 @@ from src.api.routes import search, ranking
 from src.api.routes.persons import router as persons_router
 from src.core.middleware import error_handler_middleware
 import uvicorn
+from contextlib import asynccontextmanager
+import asyncio
+from src.database import db_manager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """アプリケーションのライフサイクルイベント"""
+    # 起動時: DB接続をバックグラウンドで実行
+    loop = asyncio.get_running_loop()
+    loop.create_task(asyncio.to_thread(db_manager.connect_to_databases))
+
+    yield
+
+    # 終了時
+    db_manager.close_database_connections()
 
 # アプリケーションの作成
 app = FastAPI(
     title="SearchFace API",
     description="顔画像の類似検索API",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # CORSミドルウェア設定

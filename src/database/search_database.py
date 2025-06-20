@@ -13,26 +13,21 @@ class SearchDatabase:
     """検索履歴を管理するデータベースクラス"""
 
     def __init__(self):
-        """検索履歴データベースの初期化
-
-        Args:
-            db_url (str): TursoデータベースURL（環境変数から取得）
-        """
+        """検索履歴データベースの初期化"""
         self.db_url = os.getenv('TURSO_DATABASE_URL')
         self.db_token = os.getenv('TURSO_AUTH_TOKEN')
-
+        
         if not self.db_url:
             raise ValueError("TURSO_DATABASE_URL環境変数が設定されていません")
-
-        # Embedded Replicas方式で接続
-        self.conn = libsql.connect("search_history.db", sync_url=self.db_url, auth_token=self.db_token)
-
-        logger.info("Turso search_history DBへの初回同期を開始します...")
-        sync_start_time = time.time()
-        self.conn.sync()  # 初回同期
-        sync_duration = time.time() - sync_start_time
-        logger.info(f"Turso search_history DBへの初回同期が完了しました。所要時間: {sync_duration:.4f}秒")
-
+        
+        # データベース接続を作成
+        self.conn = libsql.connect(
+            database=self.db_url,
+            auth_token=self.db_token
+        )
+        
+        # 接続の同期
+        self.conn.sync()
 
     def record_search_results(self, search_results: List[Dict[str, Any]],
                             metadata: Optional[Dict] = None) -> str:
@@ -385,5 +380,5 @@ class SearchDatabase:
         return None
 
     def close(self):
-        """データベース接続を閉じる"""
-        pass  # libsql_clientでは明示的なclose不要
+        """データベース接続を閉じる (何もしない、接続管理は外部で行う)"""
+        pass

@@ -1,6 +1,6 @@
 import os
 import time
-from fastapi import APIRouter, UploadFile, File
+from fastapi import APIRouter, UploadFile, File, HTTPException
 from typing import List, Dict, Any
 import io
 import numpy as np
@@ -14,12 +14,18 @@ from src.face import face_utils
 from src.utils.similarity import calculate_similarity
 from src.api.models.response import SearchResult, SearchResponse, SearchSessionResponse, SearchSessionResult
 
-# 新しいデータベースクラスをインポート（記録用）
+# 新しいデータベースクラスとマネージャーをインポート
 from src.database.search_database import SearchDatabase
 from src.database.ranking_database import RankingDatabase
+from src.database.db_manager import is_sync_complete
 
 router = APIRouter(tags=["search"])
 logger = logging.getLogger(__name__)
+
+SERVICE_UNAVAILABLE_EXCEPTION = HTTPException(
+    status_code=503,
+    detail="サービス準備中です。数分後に再試行してください。"
+)
 
 @router.post("/search", response_model=SearchResponse)
 async def search_face(
@@ -40,6 +46,9 @@ async def search_face(
         ImageValidationException: 画像の検証に失敗した場合
         ServerException: サーバーエラーが発生した場合
     """
+    if not is_sync_complete():
+        raise SERVICE_UNAVAILABLE_EXCEPTION
+
     start_time = time.time()
 
     # 画像の検証
@@ -100,20 +109,16 @@ async def search_face(
         # 検索結果がある場合、ランキングデータベースに記録（person_idベース）
         if search_results and results:
             record_start = time.time()
-            search_db = None
-            ranking_db = None
+
             try:
-                # データベースインスタンスを関数内で初期化
-                db_init_start = time.time()
+                # データベースインスタンスを生成
                 search_db = SearchDatabase()
                 ranking_db = RankingDatabase()
-                db_init_time = time.time() - db_init_start
-                logger.debug(f"検索・ランキングDB初期化時間: {db_init_time:.4f}秒")
 
-                # 検索履歴を記録（resultsはperson_idを含む元のデータ）
+                # 検索履歴を記録
                 record_search_start = time.time()
                 session_id = search_db.record_search_results(
-                    search_results=results,  # person_idを含む元のresults
+                    search_results=results,
                     metadata={
                         'filename': image.filename,
                         'file_size': image.size,
@@ -125,28 +130,18 @@ async def search_face(
 
                 # 1位結果をランキングに反映
                 ranking_start = time.time()
-                winner = results[0]  # person_idを含む元のresults
-                ranking_db.update_ranking(
-                    person_id=winner['person_id']
-                )
-                ranking_time = time.time() - ranking_start
-                logger.debug(f"ランキング更新時間: {ranking_time:.4f}秒")
-
-                logger.info(f"検索結果記録完了: セッション={session_id}, 1位={winner['name']}")
+                if session_id:
+                    winner = results[0]
+                    ranking_db.update_ranking(person_id=winner['person_id'])
+                    ranking_time = time.time() - ranking_start
+                    logger.debug(f"ランキング更新時間: {ranking_time:.4f}秒")
+                    logger.info(f"検索結果記録完了: セッション={session_id}, 1位={winner['name']}")
+                else:
+                    logger.warning("セッションIDの取得に失敗したため、ランキング更新をスキップします。")
 
             except Exception as db_error:
-                # データベースエラーは検索結果の返却をブロックしない
                 logger.error(f"検索結果の記録に失敗（検索は成功）: {str(db_error)}")
             finally:
-                # 確実にデータベース接続を閉じる
-                record_close_start = time.time()
-                if search_db is not None:
-                    search_db.close()
-                if ranking_db is not None:
-                    ranking_db.close()
-                record_close_time = time.time() - record_close_start
-                logger.debug(f"検索・ランキングDB close時間: {record_close_time:.4f}秒")
-                
                 total_record_time = time.time() - record_start
                 logger.debug(f"検索結果記録処理総時間: {total_record_time:.4f}秒")
 
@@ -161,7 +156,7 @@ async def search_face(
         )
         response_time = time.time() - response_start
         logger.debug(f"レスポンス生成時間: {response_time:.4f}秒")
-        
+
         return response
 
     except ImageValidationException:
@@ -169,11 +164,6 @@ async def search_face(
     except Exception as e:
         logger.error(f"検索処理でエラーが発生: {str(e)}")
         raise ServerException(ErrorCode.INTERNAL_ERROR)
-    finally:
-        close_start = time.time()
-        db.close()
-        close_time = time.time() - close_start
-        logger.debug(f"データベースclose時間: {close_time:.4f}秒")
 
 @router.get("/search/{session_id}", response_model=SearchSessionResponse)
 async def get_search_session_results(session_id: str):
@@ -189,19 +179,22 @@ async def get_search_session_results(session_id: str):
     Raises:
         ServerException: セッションが見つからない場合やサーバーエラーが発生した場合
     """
+    if not is_sync_complete():
+        raise SERVICE_UNAVAILABLE_EXCEPTION
+
     try:
         search_db = SearchDatabase()
         session_data = search_db.get_search_session_results(session_id)
-        
+
         if not session_data:
             raise ServerException(ErrorCode.SESSION_NOT_FOUND)
-        
+
         # レスポンス形式に変換
         session_results = []
         for result in session_data['results']:
             # 類似度の計算（exponentialがデフォルト）
             similarity = calculate_similarity({'distance': result['distance']}, method='exponential')
-            
+
             session_results.append(
                 SearchSessionResult(
                     rank=result['rank'],
@@ -212,18 +205,16 @@ async def get_search_session_results(session_id: str):
                     image_path=result['image_path']
                 )
             )
-        
+
         return SearchSessionResponse(
             session_id=session_data['session_id'],
             search_timestamp=session_data['search_timestamp'],
             metadata=session_data['metadata'],
             results=session_results
         )
-    
+
     except ServerException:
         raise
     except Exception as e:
         logger.error(f"セッション結果取得でエラーが発生: {str(e)}")
         raise ServerException(ErrorCode.INTERNAL_ERROR)
-    finally:
-        search_db.close()

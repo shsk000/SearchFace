@@ -49,6 +49,7 @@ class TestSearchRoutes:
         return img_bytes.getvalue()
 
     @pytest.mark.unit
+    @patch('src.api.routes.search.is_sync_complete', return_value=True)
     @patch('src.api.routes.search.RankingDatabase')
     @patch('src.api.routes.search.SearchDatabase')
     @patch('src.api.routes.search.FaceDatabase')
@@ -59,6 +60,7 @@ class TestSearchRoutes:
         mock_face_db,
         mock_search_db,
         mock_ranking_db,
+        mock_sync_complete,
         client,
         sample_image_bytes
     ):
@@ -124,7 +126,8 @@ class TestSearchRoutes:
         mock_ranking_db_instance.update_ranking.assert_called_once_with(person_id=1)
 
     @pytest.mark.unit
-    def test_search_face_invalid_image_format(self, client):
+    @patch('src.api.routes.search.is_sync_complete', return_value=True)
+    def test_search_face_invalid_image_format(self, mock_sync_complete, client):
         """Test search with invalid image format"""
         text_data = b"This is not an image"
         
@@ -138,7 +141,8 @@ class TestSearchRoutes:
         assert data["error"]["code"] == ErrorCode.INVALID_IMAGE_FORMAT
 
     @pytest.mark.unit
-    def test_search_face_image_too_large(self, client, large_image_bytes):
+    @patch('src.api.routes.search.is_sync_complete', return_value=True)
+    def test_search_face_image_too_large(self, mock_sync_complete, client, large_image_bytes):
         """Test search with image that's too large"""
         response = client.post(
             "/api/search",
@@ -150,8 +154,9 @@ class TestSearchRoutes:
         assert data["error"]["code"] == ErrorCode.IMAGE_TOO_LARGE
 
     @pytest.mark.unit
+    @patch('src.api.routes.search.is_sync_complete', return_value=True)
     @patch('src.api.routes.search.face_utils.get_face_encoding_from_array')
-    def test_search_face_no_face_detected(self, mock_face_encoding, client, sample_image_bytes):
+    def test_search_face_no_face_detected(self, mock_face_encoding, mock_sync_complete, client, sample_image_bytes):
         """Test search when no face is detected"""
         mock_face_encoding.return_value = None
         
@@ -165,12 +170,14 @@ class TestSearchRoutes:
         assert data["error"]["code"] == ErrorCode.NO_FACE_DETECTED
 
     @pytest.mark.unit
+    @patch('src.api.routes.search.is_sync_complete', return_value=True)
     @patch('src.api.routes.search.FaceDatabase')
     @patch('src.api.routes.search.face_utils.get_face_encoding_from_array')
     def test_search_face_database_error(
         self,
         mock_face_encoding,
         mock_face_db,
+        mock_sync_complete,
         client,
         sample_image_bytes
     ):
@@ -191,8 +198,9 @@ class TestSearchRoutes:
         assert data["error"]["code"] == ErrorCode.INTERNAL_ERROR
 
     @pytest.mark.unit
+    @patch('src.api.routes.search.is_sync_complete', return_value=True)
     @patch('src.api.routes.search.SearchDatabase')
-    def test_get_search_session_results_success(self, mock_search_db, client):
+    def test_get_search_session_results_success(self, mock_search_db, mock_sync_complete, client):
         """Test successful retrieval of search session results"""
         mock_search_db_instance = MagicMock()
         mock_search_db.return_value = mock_search_db_instance
@@ -232,8 +240,9 @@ class TestSearchRoutes:
         assert "distance" in result
 
     @pytest.mark.unit
+    @patch('src.api.routes.search.is_sync_complete', return_value=True)
     @patch('src.api.routes.search.SearchDatabase')
-    def test_get_search_session_results_not_found(self, mock_search_db, client):
+    def test_get_search_session_results_not_found(self, mock_search_db, mock_sync_complete, client):
         """Test retrieval of non-existent search session"""
         mock_search_db_instance = MagicMock()
         mock_search_db.return_value = mock_search_db_instance
@@ -246,8 +255,9 @@ class TestSearchRoutes:
         assert data["error"]["code"] == ErrorCode.SESSION_NOT_FOUND
 
     @pytest.mark.unit
+    @patch('src.api.routes.search.is_sync_complete', return_value=True)
     @patch('src.api.routes.search.SearchDatabase')
-    def test_get_search_session_database_error(self, mock_search_db, client):
+    def test_get_search_session_database_error(self, mock_search_db, mock_sync_complete, client):
         """Test session retrieval when database error occurs"""
         mock_search_db_instance = MagicMock()
         mock_search_db.return_value = mock_search_db_instance
@@ -260,7 +270,8 @@ class TestSearchRoutes:
         assert data["error"]["code"] == ErrorCode.INTERNAL_ERROR
 
     @pytest.mark.unit
-    def test_search_face_corrupted_image(self, client):
+    @patch('src.api.routes.search.is_sync_complete', return_value=True)
+    def test_search_face_corrupted_image(self, mock_sync_complete, client):
         """Test search with corrupted image data"""
         corrupted_data = b"fake image data that cannot be parsed"
         
@@ -274,6 +285,7 @@ class TestSearchRoutes:
         assert data["error"]["code"] == ErrorCode.IMAGE_CORRUPTED
 
     @pytest.mark.unit
+    @patch('src.api.routes.search.is_sync_complete', return_value=True)
     @patch('src.api.routes.search.RankingDatabase')
     @patch('src.api.routes.search.SearchDatabase')
     @patch('src.api.routes.search.FaceDatabase')
@@ -284,6 +296,7 @@ class TestSearchRoutes:
         mock_face_db,
         mock_search_db,
         mock_ranking_db,
+        mock_sync_complete,
         client,
         sample_image_bytes
     ):
@@ -334,6 +347,7 @@ class TestSearchRoutes:
         assert data["search_session_id"] == ""
 
     @pytest.mark.unit
+    @patch('src.api.routes.search.is_sync_complete', return_value=True)
     @patch('src.api.routes.search.SearchDatabase')
     @patch('src.api.routes.search.RankingDatabase')
     @patch('src.api.routes.search.FaceDatabase')
@@ -344,6 +358,7 @@ class TestSearchRoutes:
         mock_face_db,
         mock_ranking_db,
         mock_search_db,
+        mock_sync_complete,
         client
     ):
         """Test search with RGBA image that gets converted to RGB"""

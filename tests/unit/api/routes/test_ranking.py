@@ -17,8 +17,9 @@ class TestRankingRoutes:
         return TestClient(app)
 
     @pytest.mark.unit
+    @patch('src.api.routes.ranking.is_sync_complete', return_value=True)
     @patch('src.api.routes.ranking.RankingDatabase')
-    def test_get_ranking_success(self, mock_ranking_db, client):
+    def test_get_ranking_success(self, mock_ranking_db, mock_sync_complete, client):
         """Test successful ranking retrieval"""
         mock_ranking_db_instance = MagicMock()
         mock_ranking_db.return_value = mock_ranking_db_instance
@@ -69,8 +70,9 @@ class TestRankingRoutes:
         mock_ranking_db_instance.get_ranking.assert_called_once_with(limit=10)
 
     @pytest.mark.unit
+    @patch('src.api.routes.ranking.is_sync_complete', return_value=True)
     @patch('src.api.routes.ranking.RankingDatabase')
-    def test_get_ranking_with_limit(self, mock_ranking_db, client):
+    def test_get_ranking_with_limit(self, mock_ranking_db, mock_sync_complete, client):
         """Test ranking retrieval with custom limit"""
         mock_ranking_db_instance = MagicMock()
         mock_ranking_db.return_value = mock_ranking_db_instance
@@ -83,8 +85,9 @@ class TestRankingRoutes:
         mock_ranking_db_instance.get_ranking.assert_called_once_with(limit=5)
 
     @pytest.mark.unit
+    @patch('src.api.routes.ranking.is_sync_complete', return_value=True)
     @patch('src.api.routes.ranking.RankingDatabase')
-    def test_get_ranking_limit_max_constraint(self, mock_ranking_db, client):
+    def test_get_ranking_limit_max_constraint(self, mock_ranking_db, mock_sync_complete, client):
         """Test that ranking limit is constrained to maximum of 10"""
         mock_ranking_db_instance = MagicMock()
         mock_ranking_db.return_value = mock_ranking_db_instance
@@ -98,8 +101,9 @@ class TestRankingRoutes:
         mock_ranking_db_instance.get_ranking.assert_called_once_with(limit=10)
 
     @pytest.mark.unit
+    @patch('src.api.routes.ranking.is_sync_complete', return_value=True)
     @patch('src.api.routes.ranking.RankingDatabase')
-    def test_get_ranking_database_error(self, mock_ranking_db, client):
+    def test_get_ranking_database_error(self, mock_ranking_db, mock_sync_complete, client):
         """Test ranking retrieval when database error occurs"""
         mock_ranking_db_instance = MagicMock()
         mock_ranking_db.return_value = mock_ranking_db_instance
@@ -110,9 +114,10 @@ class TestRankingRoutes:
         assert response.status_code == 500
 
     @pytest.mark.unit
+    @patch('src.api.routes.ranking.is_sync_complete', return_value=True)
     @patch('src.api.routes.ranking.SearchDatabase')
     @patch('src.api.routes.ranking.RankingDatabase')
-    def test_get_ranking_stats_success(self, mock_ranking_db, mock_search_db, client):
+    def test_get_ranking_stats_success(self, mock_ranking_db, mock_search_db, mock_sync_complete, client):
         """Test successful ranking stats retrieval"""
         # Mock ranking database
         mock_ranking_db_instance = MagicMock()
@@ -163,9 +168,10 @@ class TestRankingRoutes:
         mock_search_db_instance.get_search_stats.assert_called_once()
 
     @pytest.mark.unit
+    @patch('src.api.routes.ranking.is_sync_complete', return_value=True)
     @patch('src.api.routes.ranking.SearchDatabase')
     @patch('src.api.routes.ranking.RankingDatabase')
-    def test_get_ranking_stats_database_error(self, mock_ranking_db, mock_search_db, client):
+    def test_get_ranking_stats_database_error(self, mock_ranking_db, mock_search_db, mock_sync_complete, client):
         """Test ranking stats when database error occurs"""
         mock_ranking_db_instance = MagicMock()
         mock_ranking_db.return_value = mock_ranking_db_instance
@@ -176,8 +182,9 @@ class TestRankingRoutes:
         assert response.status_code == 500
 
     @pytest.mark.unit
+    @patch('src.api.routes.ranking.is_sync_complete', return_value=True)
     @patch('src.api.routes.ranking.SearchDatabase')
-    def test_get_search_history_success(self, mock_search_db, client):
+    def test_get_search_history_success(self, mock_search_db, mock_sync_complete, client):
         """Test successful search history retrieval"""
         mock_search_db_instance = MagicMock()
         mock_search_db.return_value = mock_search_db_instance
@@ -217,8 +224,9 @@ class TestRankingRoutes:
         mock_search_db_instance.get_search_sessions.assert_called_once_with(limit=50)
 
     @pytest.mark.unit
+    @patch('src.api.routes.ranking.is_sync_complete', return_value=True)
     @patch('src.api.routes.ranking.SearchDatabase')
-    def test_get_search_history_with_person_id(self, mock_search_db, client):
+    def test_get_search_history_with_person_id(self, mock_search_db, mock_sync_complete, client):
         """Test search history retrieval with person_id filter"""
         mock_search_db_instance = MagicMock()
         mock_search_db.return_value = mock_search_db_instance
@@ -245,8 +253,9 @@ class TestRankingRoutes:
         mock_search_db_instance.get_search_history.assert_called_once_with(limit=50, person_id=1)
 
     @pytest.mark.unit
+    @patch('src.api.routes.ranking.is_sync_complete', return_value=True)
     @patch('src.api.routes.ranking.SearchDatabase')
-    def test_get_search_history_with_limit(self, mock_search_db, client):
+    def test_get_search_history_with_limit(self, mock_search_db, mock_sync_complete, client):
         """Test search history retrieval with custom limit"""
         mock_search_db_instance = MagicMock()
         mock_search_db.return_value = mock_search_db_instance
@@ -259,8 +268,9 @@ class TestRankingRoutes:
         mock_search_db_instance.get_search_sessions.assert_called_once_with(limit=25)
 
     @pytest.mark.unit
+    @patch('src.api.routes.ranking.is_sync_complete', return_value=True)
     @patch('src.api.routes.ranking.SearchDatabase')
-    def test_get_search_history_database_error(self, mock_search_db, client):
+    def test_get_search_history_database_error(self, mock_search_db, mock_sync_complete, client):
         """Test search history when database error occurs"""
         mock_search_db_instance = MagicMock()
         mock_search_db.return_value = mock_search_db_instance
@@ -271,8 +281,9 @@ class TestRankingRoutes:
         assert response.status_code == 500
 
     @pytest.mark.unit
+    @patch('src.api.routes.ranking.is_sync_complete', return_value=True)
     @patch('src.api.routes.ranking.RankingDatabase')
-    def test_get_ranking_empty_results(self, mock_ranking_db, client):
+    def test_get_ranking_empty_results(self, mock_ranking_db, mock_sync_complete, client):
         """Test ranking retrieval with empty results"""
         mock_ranking_db_instance = MagicMock()
         mock_ranking_db.return_value = mock_ranking_db_instance
@@ -287,8 +298,9 @@ class TestRankingRoutes:
         assert data["total_count"] == 0
 
     @pytest.mark.unit
+    @patch('src.api.routes.ranking.is_sync_complete', return_value=True)
     @patch('src.api.routes.ranking.SearchDatabase')
-    def test_get_search_history_empty_results(self, mock_search_db, client):
+    def test_get_search_history_empty_results(self, mock_search_db, mock_sync_complete, client):
         """Test search history retrieval with empty results"""
         mock_search_db_instance = MagicMock()
         mock_search_db.return_value = mock_search_db_instance

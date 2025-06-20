@@ -28,6 +28,7 @@ class TestAPIIntegration:
         return img_bytes.getvalue()
 
     @pytest.mark.integration
+    @patch('src.api.routes.search.is_sync_complete', return_value=True)
     @patch('src.api.routes.search.RankingDatabase')
     @patch('src.api.routes.search.SearchDatabase')
     @patch('src.api.routes.search.FaceDatabase')
@@ -38,6 +39,7 @@ class TestAPIIntegration:
         mock_face_db,
         mock_search_db,
         mock_ranking_db,
+        mock_sync_complete,
         client,
         sample_image_bytes
     ):
@@ -90,8 +92,9 @@ class TestAPIIntegration:
         mock_ranking_db_instance.update_ranking.assert_called_once_with(person_id=1)
 
     @pytest.mark.integration
+    @patch('src.api.routes.ranking.is_sync_complete', return_value=True)
     @patch('src.api.routes.ranking.RankingDatabase')
-    def test_ranking_api_integration(self, mock_ranking_db, client):
+    def test_ranking_api_integration(self, mock_ranking_db, mock_sync_complete, client):
         """Test ranking API integration"""
         # Mock ranking database
         mock_ranking_db_instance = MagicMock()
@@ -126,8 +129,9 @@ class TestAPIIntegration:
         mock_ranking_db_instance.get_ranking.assert_called_once_with(limit=5)
 
     @pytest.mark.integration
+    @patch('src.api.routes.search.is_sync_complete', return_value=True)
     @patch('src.api.routes.search.SearchDatabase')
-    def test_search_session_retrieval_integration(self, mock_search_db, client):
+    def test_search_session_retrieval_integration(self, mock_search_db, mock_sync_complete, client):
         """Test search session retrieval integration"""
         # Mock search database
         mock_search_db_instance = MagicMock()
@@ -160,7 +164,8 @@ class TestAPIIntegration:
         assert len(data["results"]) == 1
 
     @pytest.mark.integration
-    def test_error_handling_integration(self, client):
+    @patch('src.api.routes.search.is_sync_complete', return_value=True)
+    def test_error_handling_integration(self, mock_sync_complete, client):
         """Test error handling across the API"""
         # Test invalid image format
         response = client.post(
