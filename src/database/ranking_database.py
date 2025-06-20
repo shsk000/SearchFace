@@ -26,8 +26,12 @@ class RankingDatabase:
             auth_token=self.db_token
         )
         
-        # 接続の同期
-        self.conn.sync()
+        # 接続の同期（リモートモードでは無視）
+        try:
+            self.conn.sync()
+        except Exception as e:
+            # リモートモードでは sync() がサポートされていないため無視
+            logger.debug(f"sync() をスキップしました: {str(e)}")
 
     def update_ranking(self, person_id: int) -> None:
         """ランキングテーブルを更新（1位結果用）
@@ -56,7 +60,11 @@ class RankingDatabase:
                 """, (win_count, person_id))
 
                 self.conn.commit()
-                self.conn.sync()
+                try:
+                    self.conn.sync()
+                except Exception:
+                    # リモートモードでは sync() がサポートされていないため無視
+                    pass
             else:
                 # 新規レコードを挿入
                 self.conn.execute("""
@@ -66,7 +74,11 @@ class RankingDatabase:
                 """, (person_id,))
 
             self.conn.commit()
-            self.conn.sync()
+            try:
+                self.conn.sync()
+            except Exception:
+                # リモートモードでは sync() がサポートされていないため無視
+                pass
 
             logger.info(f"ランキングを更新しました: person_id={person_id}")
 
