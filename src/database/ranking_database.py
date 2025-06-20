@@ -12,15 +12,22 @@ logger = log_utils.get_logger(__name__)
 class RankingDatabase:
     """ランキング集計を管理するデータベースクラス"""
 
-    def __init__(self, conn: libsql.Connection):
-        """ランキングデータベースの初期化
-
-        Args:
-            conn (libsql.Connection): データベース接続オブジェクト
-        """
-        if conn is None:
-            raise ValueError("データベース接続が提供されていません")
-        self.conn = conn
+    def __init__(self):
+        """ランキングデータベースの初期化"""
+        self.db_url = os.getenv('TURSO_DATABASE_URL')
+        self.db_token = os.getenv('TURSO_AUTH_TOKEN')
+        
+        if not self.db_url:
+            raise ValueError("TURSO_DATABASE_URL環境変数が設定されていません")
+        
+        # データベース接続を作成
+        self.conn = libsql.connect(
+            database=self.db_url,
+            auth_token=self.db_token
+        )
+        
+        # 接続の同期
+        self.conn.sync()
 
     def update_ranking(self, person_id: int) -> None:
         """ランキングテーブルを更新（1位結果用）

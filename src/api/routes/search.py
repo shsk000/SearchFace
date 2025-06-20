@@ -17,7 +17,7 @@ from src.api.models.response import SearchResult, SearchResponse, SearchSessionR
 # 新しいデータベースクラスとマネージャーをインポート
 from src.database.search_database import SearchDatabase
 from src.database.ranking_database import RankingDatabase
-from src.database.db_manager import get_search_db_connection, get_ranking_db_connection, is_sync_complete
+from src.database.db_manager import is_sync_complete
 
 router = APIRouter(tags=["search"])
 logger = logging.getLogger(__name__)
@@ -110,47 +110,40 @@ async def search_face(
         if search_results and results:
             record_start = time.time()
 
-            # グローバルな接続を取得
-            search_conn = get_search_db_connection()
-            ranking_conn = get_ranking_db_connection()
+            try:
+                # データベースインスタンスを生成
+                search_db = SearchDatabase()
+                ranking_db = RankingDatabase()
 
-            if not search_conn or not ranking_conn:
-                logger.error("データベース接続が利用できません。記録をスキップします。")
-            else:
-                try:
-                    # データベースインスタンスを生成
-                    search_db = SearchDatabase(search_conn)
-                    ranking_db = RankingDatabase(ranking_conn)
+                # 検索履歴を記録
+                record_search_start = time.time()
+                session_id = search_db.record_search_results(
+                    search_results=results,
+                    metadata={
+                        'filename': image.filename,
+                        'file_size': image.size,
+                        'processing_time': processing_time
+                    }
+                )
+                record_search_time = time.time() - record_search_start
+                logger.debug(f"検索履歴記録時間: {record_search_time:.4f}秒")
 
-                    # 検索履歴を記録
-                    record_search_start = time.time()
-                    session_id = search_db.record_search_results(
-                        search_results=results,
-                        metadata={
-                            'filename': image.filename,
-                            'file_size': image.size,
-                            'processing_time': processing_time
-                        }
-                    )
-                    record_search_time = time.time() - record_search_start
-                    logger.debug(f"検索履歴記録時間: {record_search_time:.4f}秒")
+                # 1位結果をランキングに反映
+                ranking_start = time.time()
+                if session_id:
+                    winner = results[0]
+                    ranking_db.update_ranking(person_id=winner['person_id'])
+                    ranking_time = time.time() - ranking_start
+                    logger.debug(f"ランキング更新時間: {ranking_time:.4f}秒")
+                    logger.info(f"検索結果記録完了: セッション={session_id}, 1位={winner['name']}")
+                else:
+                    logger.warning("セッションIDの取得に失敗したため、ランキング更新をスキップします。")
 
-                    # 1位結果をランキングに反映
-                    ranking_start = time.time()
-                    if session_id:
-                        winner = results[0]
-                        ranking_db.update_ranking(person_id=winner['person_id'])
-                        ranking_time = time.time() - ranking_start
-                        logger.debug(f"ランキング更新時間: {ranking_time:.4f}秒")
-                        logger.info(f"検索結果記録完了: セッション={session_id}, 1位={winner['name']}")
-                    else:
-                        logger.warning("セッションIDの取得に失敗したため、ランキング更新をスキップします。")
-
-                except Exception as db_error:
-                    logger.error(f"検索結果の記録に失敗（検索は成功）: {str(db_error)}")
-                finally:
-                    total_record_time = time.time() - record_start
-                    logger.debug(f"検索結果記録処理総時間: {total_record_time:.4f}秒")
+            except Exception as db_error:
+                logger.error(f"検索結果の記録に失敗（検索は成功）: {str(db_error)}")
+            finally:
+                total_record_time = time.time() - record_start
+                logger.debug(f"検索結果記録処理総時間: {total_record_time:.4f}秒")
 
         logger.debug(f"results: {search_results}")
 
@@ -190,11 +183,7 @@ async def get_search_session_results(session_id: str):
         raise SERVICE_UNAVAILABLE_EXCEPTION
 
     try:
-        search_conn = get_search_db_connection()
-        if not search_conn:
-            raise HTTPException(status_code=503, detail="データベースサービスが利用できません。")
-
-        search_db = SearchDatabase(search_conn)
+        search_db = SearchDatabase()
         session_data = search_db.get_search_session_results(session_id)
 
         if not session_data:

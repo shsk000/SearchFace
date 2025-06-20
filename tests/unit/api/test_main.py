@@ -68,8 +68,9 @@ class TestMainApp:
     @pytest.mark.unit
     def test_ranking_routes_included(self, client):
         """Test that ranking routes are accessible"""
-        # Mock the database to avoid actual DB calls
-        with patch('src.api.routes.ranking.RankingDatabase') as mock_db:
+        # Mock the database and sync check to avoid actual DB calls
+        with patch('src.api.routes.ranking.is_sync_complete', return_value=True), \
+             patch('src.api.routes.ranking.RankingDatabase') as mock_db:
             mock_db_instance = mock_db.return_value
             mock_db_instance.get_ranking.return_value = []
             

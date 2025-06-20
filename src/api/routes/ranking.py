@@ -5,7 +5,7 @@ from src.database.ranking_database import RankingDatabase
 from src.database.search_database import SearchDatabase
 from src.api.models.ranking import RankingResponse, RankingItem, RankingStatsResponse, SearchHistoryResponse
 from src.utils import log_utils
-from src.database.db_manager import get_ranking_db_connection, is_sync_complete
+from src.database.db_manager import is_sync_complete
 from src.core.errors import ErrorCode
 from src.core.exceptions import ServerException
 
@@ -17,7 +17,7 @@ SERVICE_UNAVAILABLE_EXCEPTION = HTTPException(
     detail="サービス準備中です。数分後に再試行してください。"
 )
 
-@router.get("/ranking", response_model=List[RankingResponse])
+@router.get("/ranking", response_model=RankingResponse)
 async def get_top_ranking(limit: int = 10):
     """
     検索回数に基づいた人物ランキングを取得する
@@ -25,16 +25,15 @@ async def get_top_ranking(limit: int = 10):
     if not is_sync_complete():
         raise SERVICE_UNAVAILABLE_EXCEPTION
 
-    try:
-        ranking_conn = get_ranking_db_connection()
-        if not ranking_conn:
-            raise HTTPException(status_code=503, detail="データベースサービスが利用できません。")
+    # Limit制約を適用（最大10）
+    limit = min(limit, 10)
 
-        ranking_db = RankingDatabase(ranking_conn)
+    try:
+        ranking_db = RankingDatabase()
         ranking_data = ranking_db.get_ranking(limit=limit)
 
-        return [
-            RankingResponse(
+        ranking_items = [
+            RankingItem(
                 rank=item['rank'],
                 person_id=item['person_id'],
                 name=item['name'],
@@ -43,6 +42,11 @@ async def get_top_ranking(limit: int = 10):
                 image_path=item.get('image_path')
             ) for item in ranking_data
         ]
+        
+        return RankingResponse(
+            ranking=ranking_items,
+            total_count=len(ranking_items)
+        )
     except Exception as e:
         logger.error(f"ランキング取得でエラーが発生: {str(e)}")
         raise ServerException(ErrorCode.INTERNAL_ERROR)
