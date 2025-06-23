@@ -53,27 +53,141 @@ frontend/
 
 #### features ディレクトリ
 - 特定の機能に関連するコンポーネントを配置
-- ビジネスロジックを含む
-- コンテナコンポーネントとして実装
+- **Container/Presentationalパターン**を必須で採用
 - **コロケーション**: 関連するすべてのファイルを機能単位でディレクトリに集約
 - 例：画像アップロード、検索結果表示など
 
-#### コロケーション設計思想
+#### Container/Presentationalパターン（必須）
+
+**全てのfeature機能はContainer/Presentationalパターンで実装すること**
+
 ```
 features/
-├── search-results/           # 検索結果表示機能
-│   ├── SearchResultsDisplay.tsx  # メインコンポーネント
+├── products/                 # 商品表示機能
+│   ├── containers/           # Containerコンポーネント
+│   │   └── ProductsContainer.tsx    # データ取得・ビジネスロジック（Server Component）
+│   ├── presentations/        # Presentationalコンポーネント
+│   │   └── ProductsListPresentation.tsx  # UI表示専用（Client Component）
 │   ├── api.ts               # API呼び出し関数
 │   ├── types.ts             # 型定義
-│   ├── utils.ts             # ユーティリティ関数
-│   ├── data.ts              # モックデータ・定数
-│   ├── styles.module.css    # スタイル（必要に応じて）
-│   └── index.ts             # エクスポート
-├── image-upload/            # 画像アップロード機能
-│   ├── ImageUploadZone.tsx
-│   ├── types.ts
-│   └── utils.ts
+│   └── utils.ts             # ユーティリティ関数
+├── actress-detail/          # 女優詳細機能
+│   ├── containers/
+│   │   └── ActressDetailContainer.tsx
+│   ├── presentations/
+│   │   └── ActressDetailPresentation.tsx
+│   ├── api.ts
+│   └── types.ts
 ```
+
+**Containerコンポーネント（Server Component）:**
+- データ取得・ビジネスロジックを担当
+- APIリクエストを実行
+- エラーハンドリングを行う
+- Presentationalコンポーネントにpropsを渡す
+- 必ずServer Componentとして実装
+- ファイル名: `*Container.tsx`
+
+**Presentationalコンポーネント（Client Component）:**
+- UIの表示のみを担当
+- propsとして受け取ったデータを表示
+- ユーザーインタラクションを処理
+- 必要に応じてClient Componentとして実装
+- ファイル名: `*Presentation.tsx`
+
+#### 実装パターン
+
+```typescript
+// containers/ProductsContainer.tsx
+export default async function ProductsContainer({ personId, limit = 10 }: Props) {
+  try {
+    // データ取得
+    const productsData = await getProductsByPersonId(personId, limit);
+    
+    // Presentationalコンポーネントに渡す
+    return (
+      <ProductsListPresentation
+        productsData={productsData}
+        className={className}
+      />
+    );
+  } catch (error) {
+    // エラー状態を渡す
+    return (
+      <ProductsListPresentation
+        productsData={null}
+        className={className}
+        error="データ取得に失敗しました"
+      />
+    );
+  }
+}
+
+// presentations/ProductsListPresentation.tsx
+export function ProductsListPresentation({ productsData, error }: Props) {
+  if (error) {
+    return <ErrorMessage message={error} />;
+  }
+  
+  if (!productsData) {
+    return <NoDataMessage />;
+  }
+  
+  return (
+    <div>
+      {/* UI表示 */}
+    </div>
+  );
+}
+```
+
+#### appディレクトリからの使用方法
+
+**重要**: Barrel Exports（index.ts）は使用禁止。直接パスを指定してimportすること。
+
+```typescript
+// app/actress/[person_id]/page.tsx
+import ActressDetailContainer from "@/features/actress-detail/containers/ActressDetailContainer";
+
+export default async function ActressDetailPage({ params }: Props) {
+  const { person_id } = await params;
+  const personId = Number.parseInt(person_id);
+  
+  // Containerコンポーネントを呼び出すだけ
+  return <ActressDetailContainer personId={personId} />;
+}
+```
+
+#### Import方針
+
+**禁止**: Barrel Exports（index.ts）の使用
+```typescript
+// ❌ 禁止
+import { ActressDetailContainer } from "@/features/actress-detail";
+import { ProductsContainer } from "@/features/products";
+```
+
+**推奨**: 直接パスでのImport
+```typescript
+// ✅ 推奨
+import ActressDetailContainer from "@/features/actress-detail/containers/ActressDetailContainer";
+import ProductsContainer from "@/features/products/containers/ProductsContainer";
+import { getProductsByPersonId } from "@/features/products/api";
+import type { DmmProduct } from "@/features/products/types";
+```
+
+**理由**:
+- バンドルサイズの最適化
+- 依存関係の明確化
+- Tree Shakingの効果向上
+- 循環依存の回避
+
+**Container/Presentationalパターンの利点:**
+- 関心の分離が明確
+- テストが容易
+- 再利用しやすい
+- メンテナンス性が向上
+- データ取得とUI表示が独立
 
 **コロケーションの利点:**
 - 機能に関連するコードがすべて1箇所に集約される

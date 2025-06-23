@@ -1,11 +1,10 @@
 import { PersonCard } from "@/components/search/PersonCard";
-import { ProductCard } from "@/components/search/ProductCard";
 import { Button } from "@/components/ui/button";
 import { BackgroundImages } from "@/features/background/BackgroundImages";
+import ProductsContainer from "@/features/products/containers/ProductsContainer";
 import { AlertCircle, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { getSearchSessionResults } from "./api";
-import { mockProducts } from "./data";
 import type { SearchSessionResponse } from "./types";
 import { formatSearchResults } from "./utils";
 
@@ -73,18 +72,12 @@ export default async function SearchResultsDisplay({ sessionId }: SearchResultsD
           </div>
         </div>
 
-        {/* アフィリエイト商品エリア */}
-        <div className="mb-8">
-          <h3 className="text-lg font-semibold mb-4 text-center">最新商品</h3>
-
-          <div className="overflow-x-auto">
-            <div className="flex gap-4 pb-4 min-w-max">
-              {mockProducts.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
+        {/* 関連商品エリア */}
+        {formattedResults[0]?.id && (
+          <div className="mb-8">
+            <ProductsContainer personId={formattedResults[0].id} limit={6} className="" />
           </div>
-        </div>
+        )}
 
         {/* フッター */}
         <SearchResultsFooter />

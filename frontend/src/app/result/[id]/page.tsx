@@ -1,4 +1,4 @@
-import { SearchResultsDisplay } from "@/features/search-results";
+import SearchResultsDisplay from "@/features/search-results/SearchResultsDisplay";
 
 interface ResultPageProps {
   params: Promise<{ id: string }>;

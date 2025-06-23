@@ -3,7 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import StructuredData from "@/components/StructuredData";
 import { Toaster } from "@/components/ui/sonner";
-import { AgeVerificationProvider } from "@/features/age-verification";
+import { AgeVerificationProvider } from "@/features/age-verification/age-verification-provider";
 import GoogleAnalytics from "@/features/analytics/google-analytics";
 import { isAgeVerified } from "@/lib/age-verification";
 
