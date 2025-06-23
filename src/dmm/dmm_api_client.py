@@ -8,7 +8,7 @@ import os
 import json
 import requests
 from typing import Optional, Dict, Any
-from .models import DmmApiResponse, DmmProduct, DmmImageInfo
+from .models import DmmApiResponse, DmmProduct, DmmImageInfo, DmmPrices, DmmDelivery
 from src.utils import log_utils
 
 # ログ設定
@@ -38,7 +38,7 @@ class DmmApiClient:
         
         Args:
             dmm_actress_id (int): DMM女優ID
-            limit (int): 取得件数（最大100）
+            limit (int): 取得件数（最大20件）
             offset (int): 検索開始位置（1から開始）
             
         Returns:
@@ -50,7 +50,7 @@ class DmmApiClient:
             "site": "FANZA",
             "service": "digital", 
             "floor": "videoa",
-            "hits": min(limit, 100),  # 最大100件制限
+            "hits": min(limit, 20),  # 最大20件制限
             "offset": max(offset, 1),  # 1以上の値
             "sort": "rank",
             "output": "json",
@@ -139,6 +139,12 @@ class DmmApiClient:
                     logger.warning(f"大サイズ画像URLが存在しない商品をスキップ: {content_id}")
                     continue
                 
+                # アフィリエイトURL取得
+                affiliate_url = item.get('affiliateURL', '')
+                
+                # 価格情報取得
+                prices = self._extract_prices(item)
+                
                 # 出演女優数をチェック
                 iteminfo = item.get('iteminfo', {})
                 actress_list = iteminfo.get('actress', [])
@@ -148,7 +154,9 @@ class DmmApiClient:
                     content_id=content_id,
                     title=title,
                     image_info=image_info,
-                    actress_count=actress_count
+                    actress_count=actress_count,
+                    affiliate_url=affiliate_url,
+                    prices=prices
                 )
                 
                 products.append(product)
@@ -158,6 +166,59 @@ class DmmApiClient:
                 continue
         
         return products
+    
+    def _extract_prices(self, item: Dict[str, Any]) -> DmmPrices:
+        """商品の価格情報を抽出（API仕様準拠）
+        
+        Args:
+            item (Dict[str, Any]): 商品データ
+            
+        Returns:
+            DmmPrices: 価格情報（dataclass形式）
+        """
+        try:
+            # 価格情報の取得
+            prices_data = item.get('prices', {})
+            
+            if not prices_data:
+                # 価格情報が存在しない場合のデフォルト
+                return DmmPrices(price='価格未設定')
+            
+            # price: 金額 (300～)
+            price = prices_data.get('price')
+            if price is not None:
+                price = str(price)
+            
+            # list_price: 定価
+            list_price = prices_data.get('list_price')
+            if list_price is not None:
+                list_price = str(list_price)
+            
+            # deliveries: 配信リスト
+            deliveries = []
+            deliveries_list = prices_data.get('deliveries', [])
+            if deliveries_list and isinstance(deliveries_list, list):
+                for delivery in deliveries_list:
+                    if isinstance(delivery, dict):
+                        delivery_type = delivery.get('type')
+                        delivery_price = delivery.get('price')
+                        
+                        # type と price の両方が存在する場合のみ追加
+                        if delivery_type is not None and delivery_price is not None:
+                            deliveries.append(DmmDelivery(
+                                type=str(delivery_type),
+                                price=str(delivery_price)
+                            ))
+            
+            return DmmPrices(
+                price=price,
+                list_price=list_price,
+                deliveries=deliveries if deliveries else None
+            )
+                
+        except Exception as e:
+            logger.warning(f"価格情報抽出エラー: {str(e)}")
+            return DmmPrices(price='価格未設定')
     
     def get_api_status(self) -> Dict[str, Any]:
         """API接続状態を確認

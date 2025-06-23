@@ -50,12 +50,39 @@ class DmmImageInfo:
 
 
 @dataclass
+class DmmDelivery:
+    """DMM配信情報"""
+    type: str           # 配信タイプ (stream, download等)
+    price: str          # 配信価格
+
+
+@dataclass
+class DmmPrices:
+    """DMM価格情報"""
+    price: Optional[str] = None         # 金額 (300～)
+    list_price: Optional[str] = None    # 定価
+    deliveries: Optional[List['DmmDelivery']] = None  # 配信リスト
+
+    def __post_init__(self):
+        """初期化後処理"""
+        # deliveriesはOptionalなので、明示的にNoneを設定した場合はそのまま保持
+        pass
+
+
+@dataclass
 class DmmProduct:
     """DMM商品情報"""
     content_id: str
     title: str
     image_info: DmmImageInfo
     actress_count: int = 1  # 出演女優数
+    affiliate_url: str = ""  # アフィリエイトURL
+    prices: Optional[DmmPrices] = None  # 価格情報
+
+    def __post_init__(self):
+        """初期化後処理"""
+        if self.prices is None:
+            self.prices = DmmPrices()
 
     @property
     def primary_image_url(self) -> str:

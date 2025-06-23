@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from src.api.routes import search, ranking
 from src.api.routes.persons import router as persons_router
+from src.api.routes.products import router as products_router
 from src.core.middleware import error_handler_middleware
 import uvicorn
 from contextlib import asynccontextmanager
@@ -50,6 +51,7 @@ async def root():
 app.include_router(search.router, prefix="/api")
 app.include_router(ranking.router, prefix="/api")
 app.include_router(persons_router, prefix="/api")
+app.include_router(products_router, prefix="/api")
 
 # 起動用関数
 def start(host="0.0.0.0", port=10000):
