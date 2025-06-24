@@ -6,6 +6,8 @@ import { Toaster } from "@/components/ui/sonner";
 import { AgeVerificationProvider } from "@/features/age-verification/age-verification-provider";
 import GoogleAnalytics from "@/features/analytics/google-analytics";
 import { isAgeVerified } from "@/lib/age-verification";
+import { BackgroundImages } from "@/features/background/BackgroundImages";
+import { Footer } from "@/components/footer/Footer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -62,6 +64,7 @@ export default async function RootLayout({
         <StructuredData />
         <AgeVerificationProvider isAgeVerified={ageVerified}>{children}</AgeVerificationProvider>
         <Toaster />
+        <BackgroundImages />
       </body>
     </html>
   );

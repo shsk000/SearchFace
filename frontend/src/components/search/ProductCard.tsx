@@ -35,17 +35,17 @@ export function ProductCard({ product, className }: ProductCardProps) {
     <a href={product.productURL} target="_blank" rel="noopener noreferrer">
       <Card
         className={cn(
-          "bg-zinc-800/90 border-zinc-700 backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:border-zinc-600 w-48 flex-shrink-0 cursor-pointer",
+          "bg-zinc-800/90 border-zinc-700 backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:border-zinc-600 flex-shrink-0 cursor-pointer",
           className,
         )}
       >
         <CardContent className="p-4">
           {/* 商品画像 */}
-          <div className="relative mb-3">
+          <div className="relative mb-3" style={{ minWidth: "247px" }}>
             <img
               src={product.imageURL.large}
               alt={product.title}
-              className="w-full h-32 object-cover rounded-md"
+              className="w-full h-auto object-cover rounded-md"
               loading="lazy"
               onError={(e) => {
                 // フォールバック画像を設定

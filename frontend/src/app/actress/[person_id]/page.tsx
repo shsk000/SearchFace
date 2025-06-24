@@ -1,3 +1,4 @@
+import { Content } from "@/components/content/Content";
 import ActressDetailContainer from "@/features/actress-detail/containers/ActressDetailContainer";
 import ProductsContainer from "@/features/products/containers/ProductsContainer";
 import { logger } from "@/lib/logger";
@@ -72,11 +73,14 @@ export default async function ActressDetailPage({ params }: ActressDetailPagePro
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-zinc-900 via-black to-zinc-900">
+    <Content
+      as="main"
+      className="min-h-screen bg-gradient-to-br from-zinc-900 via-black to-zinc-900"
+    >
       <Suspense fallback={<ActressDetailLoading />}>
         <ActressDetailContent personId={personId} />
       </Suspense>
-    </div>
+    </Content>
   );
 }
 

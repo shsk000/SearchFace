@@ -61,6 +61,11 @@ frontend/
 
 **全てのfeature機能はContainer/Presentationalパターンで実装すること**
 
+**重要**: Client ComponentからServer Componentを呼び出すことは不可能です
+- **禁止**: Presentationalコンポーネント（Client Component）からContainerコンポーネント（Server Component）を呼び出すこと
+- **必須**: Containerコンポーネント（Server Component）から他のContainerコンポーネント（Server Component）を呼び出すこと
+- **理由**: React Server Componentsの制約により、Client ComponentからServer Componentを直接呼び出すことはできません
+
 ```
 features/
 ├── products/                 # 商品表示機能
@@ -85,6 +90,7 @@ features/
 - APIリクエストを実行
 - エラーハンドリングを行う
 - Presentationalコンポーネントにpropsを渡す
+- **他のContainerコンポーネントを呼び出すことが可能**
 - 必ずServer Componentとして実装
 - ファイル名: `*Container.tsx`
 
@@ -92,6 +98,7 @@ features/
 - UIの表示のみを担当
 - propsとして受け取ったデータを表示
 - ユーザーインタラクションを処理
+- **他のContainerコンポーネントを呼び出すことは禁止**
 - 必要に応じてClient Componentとして実装
 - ファイル名: `*Presentation.tsx`
 
@@ -103,7 +110,7 @@ export default async function ProductsContainer({ personId, limit = 10 }: Props)
   try {
     // データ取得
     const productsData = await getProductsByPersonId(personId, limit);
-    
+
     // Presentationalコンポーネントに渡す
     return (
       <ProductsListPresentation
@@ -128,16 +135,56 @@ export function ProductsListPresentation({ productsData, error }: Props) {
   if (error) {
     return <ErrorMessage message={error} />;
   }
-  
+
   if (!productsData) {
     return <NoDataMessage />;
   }
-  
+
   return (
     <div>
       {/* UI表示 */}
     </div>
   );
+}
+```
+
+#### ContainerからContainerを呼び出すパターン
+
+```typescript
+// containers/SearchResultsContainer.tsx
+import ProductsContainer from "@/features/products/containers/ProductsContainer";
+
+export default async function SearchResultsContainer({ sessionId }: Props) {
+  try {
+    // データ取得
+    const sessionData = await getSearchSessionResults(sessionId);
+    const formattedResults = formatSearchResults(sessionData.results);
+
+    // Presentationalコンポーネントと他のContainerコンポーネントを呼び出す
+    return (
+      <>
+        <SearchResultsPresentation
+          sessionData={sessionData}
+          formattedResults={formattedResults}
+          error={null}
+        />
+        {/* 関連商品エリア - ContainerからContainerを呼び出し */}
+        {formattedResults[0]?.id && (
+          <div className="mb-8">
+            <ProductsContainer personId={formattedResults[0].id} limit={6} />
+          </div>
+        )}
+      </>
+    );
+  } catch (error) {
+    return (
+      <SearchResultsPresentation
+        sessionData={null}
+        formattedResults={null}
+        error="データ取得に失敗しました"
+      />
+    );
+  }
 }
 ```
 
@@ -152,7 +199,7 @@ import ActressDetailContainer from "@/features/actress-detail/containers/Actress
 export default async function ActressDetailPage({ params }: Props) {
   const { person_id } = await params;
   const personId = Number.parseInt(person_id);
-  
+
   // Containerコンポーネントを呼び出すだけ
   return <ActressDetailContainer personId={personId} />;
 }
@@ -215,12 +262,12 @@ export async function getRankingData(): Promise<RankingResponse | null> {
     const response = await fetch(`${API_BASE_URL}/api/ranking?limit=5`, {
       cache: "no-store", // リアルタイムデータの場合
     });
-    
+
     if (!response.ok) {
       console.error("Failed to fetch ranking data:", response.status);
       return null;
     }
-    
+
     return await response.json();
   } catch (error) {
     console.error("Error fetching ranking data:", error);
@@ -231,11 +278,11 @@ export async function getRankingData(): Promise<RankingResponse | null> {
 // features/ranking/SearchRanking.tsx
 export default async function SearchRanking() {
   const rankingData = await getRankingData();
-  
+
   if (!rankingData) {
     return <ErrorFallback />;
   }
-  
+
   return <RankingDisplay data={rankingData} />;
 }
 ```
@@ -317,9 +364,9 @@ const logger = createLogger("SearchResults");
 export async function getSearchSessionResults(sessionId: string) {
   try {
     logger.info("検索セッション結果を取得開始", { sessionId });
-    
+
     const response = await fetch(url);
-    
+
     if (!response.ok) {
       logger.error("APIリクエストが失敗", {
         sessionId,
@@ -328,12 +375,12 @@ export async function getSearchSessionResults(sessionId: string) {
       });
       return null;
     }
-    
+
     logger.info("検索セッション結果の取得に成功", {
       sessionId,
       resultCount: data.results?.length || 0,
     });
-    
+
     return data;
   } catch (error) {
     logger.error("処理中にエラーが発生", { sessionId, error });
@@ -353,14 +400,14 @@ export async function searchImage(formData: FormData) {
       fileName: image.name,
       fileSize: image.size,
     });
-    
+
     const result = await fetch(url, options);
-    
+
     logger.info("画像検索成功", {
       resultsCount: data.results?.length,
       processingTime: data.processing_time,
     });
-    
+
     return result;
   } catch (error) {
     logger.error("検索処理中にエラー", { error });
