@@ -1,0 +1,424 @@
+import { render, screen } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from "vitest";
+
+// MSW を完全に無効化
+vi.mock("msw", () => ({}));
+vi.mock("msw/node", () => ({}));
+
+vi.mock("../../../setupTests", () => ({}));
+
+// Next.js のモック設定
+const mockPush = vi.fn();
+const mockReplace = vi.fn();
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: mockPush,
+    replace: mockReplace,
+  }),
+  useSearchParams: () => new URLSearchParams(),
+  usePathname: () => "/actresses",
+}));
+
+// fetchの完全モック（MSW を使わずに直接モック）
+const originalFetch = global.fetch;
+const mockFetch = vi.fn();
+
+beforeAll(() => {
+  global.fetch = mockFetch;
+});
+
+afterAll(() => {
+  global.fetch = originalFetch;
+});
+
+describe("ActressList Feature Integration Tests", () => {
+  const mockApiResponse = {
+    persons: [
+      {
+        person_id: 1,
+        name: "AIKA",
+        image_path: "http://pics.dmm.co.jp/mono/actjpgs/aika3.jpg",
+        dmm_actress_id: 1008887,
+      },
+      {
+        person_id: 2,
+        name: "AIKA（三浦あいか）",
+        image_path: "http://pics.dmm.co.jp/mono/actjpgs/miura_aika.jpg",
+        dmm_actress_id: 1105,
+      },
+      {
+        person_id: 3,
+        name: "愛上みお",
+        image_path: "http://pics.dmm.co.jp/mono/actjpgs/aiue_mio.jpg",
+        dmm_actress_id: 1075314,
+      },
+    ],
+    total_count: 13010,
+    has_more: true,
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    // 成功レスポンスをデフォルトに設定
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockApiResponse,
+    });
+  });
+
+  it("Container → API → Presentation の完全な統合フロー", async () => {
+    // Server Component を直接テストするのではなく、API関数とPresentation Componentを統合テスト
+    const { getActressList } = await import("./api");
+    const { ActressListPresentation } = await import("./presentations/ActressListPresentation");
+
+    // API関数を直接呼び出してテスト
+    const result = await getActressList();
+
+    // APIが正しく呼ばれたことを確認
+    expect(global.fetch).toHaveBeenCalledWith(
+      "http://backend:10000/api/persons",
+      expect.objectContaining({
+        cache: "no-store",
+      }),
+    );
+
+    // API結果の検証
+    expect(result).toEqual(mockApiResponse);
+
+    // Presentation Component で結果を表示
+    render(
+      <ActressListPresentation
+        actresses={result?.persons || []}
+        totalCount={result?.total_count || 0}
+        currentPage={1}
+        itemsPerPage={20}
+        searchQuery=""
+        sortBy="name"
+        isLoading={false}
+        error={null}
+      />,
+    );
+
+    // データが正しく表示されることを確認
+    expect(screen.getByText("女優一覧")).toBeInTheDocument();
+    expect(screen.getByText("AIKA")).toBeInTheDocument();
+    expect(screen.getByText("AIKA（三浦あいか）")).toBeInTheDocument();
+    expect(screen.getByText("愛上みお")).toBeInTheDocument();
+
+    // 総数の表示確認
+    expect(screen.getByText("13010名の女優が登録されています")).toBeInTheDocument();
+
+    // ページネーション情報の確認
+    expect(screen.getByText("1-20件 / 全13010件")).toBeInTheDocument();
+    expect(screen.getByText("次へ")).toBeInTheDocument();
+  });
+
+  it("検索パラメータありでの統合フロー", async () => {
+    // 検索結果のモックレスポンス
+    const searchResponse = {
+      persons: [
+        {
+          person_id: 1,
+          name: "AIKA",
+          image_path: "http://pics.dmm.co.jp/mono/actjpgs/aika3.jpg",
+          dmm_actress_id: 1008887,
+        },
+        {
+          person_id: 2,
+          name: "AIKA（三浦あいか）",
+          image_path: "http://pics.dmm.co.jp/mono/actjpgs/miura_aika.jpg",
+          dmm_actress_id: 1105,
+        },
+      ],
+      total_count: 2,
+      has_more: false,
+    };
+
+    mockFetch.mockReset();
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => searchResponse,
+    });
+
+    // API関数を検索パラメータ付きで呼び出し
+    const { getActressList } = await import("./api");
+    const { ActressListPresentation } = await import("./presentations/ActressListPresentation");
+
+    const result = await getActressList({ search: "AIKA", sort_by: "name" });
+
+    // 検索パラメータが正しくAPIに送信されたか確認
+    expect(global.fetch).toHaveBeenCalledWith(
+      "http://backend:10000/api/persons?search=AIKA&sort_by=name",
+      expect.objectContaining({ cache: "no-store" }),
+    );
+
+    // API結果の検証
+    expect(result).toEqual(searchResponse);
+
+    // Presentation Component で結果を表示
+    render(
+      <ActressListPresentation
+        actresses={result?.persons || []}
+        totalCount={result?.total_count || 0}
+        currentPage={1}
+        itemsPerPage={20}
+        searchQuery="AIKA"
+        sortBy="name"
+        isLoading={false}
+        error={null}
+      />,
+    );
+
+    // 検索結果のみが表示されることを確認
+    expect(screen.getByText("女優一覧")).toBeInTheDocument();
+    expect(screen.getByText("AIKA")).toBeInTheDocument();
+    expect(screen.getByText("AIKA（三浦あいか）")).toBeInTheDocument();
+    expect(screen.queryByText("愛上みお")).not.toBeInTheDocument();
+
+    // 検索結果数の表示確認
+    expect(screen.getByText("2名の女優が登録されています")).toBeInTheDocument();
+  });
+
+  it("ページネーション統合フロー", async () => {
+    const page2Response = {
+      persons: [
+        {
+          person_id: 21,
+          name: "テスト女優21",
+          image_path: "http://example.com/test21.jpg",
+          dmm_actress_id: 21,
+        },
+        {
+          person_id: 22,
+          name: "テスト女優22",
+          image_path: "http://example.com/test22.jpg",
+          dmm_actress_id: 22,
+        },
+      ],
+      total_count: 13010,
+      has_more: true,
+    };
+
+    mockFetch.mockReset();
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => page2Response,
+    });
+
+    // API関数を2ページ目のパラメータで呼び出し
+    const { getActressList } = await import("./api");
+    const { ActressListPresentation } = await import("./presentations/ActressListPresentation");
+
+    const result = await getActressList({ offset: 20 });
+
+    // オフセット計算が正しく行われているか確認
+    expect(global.fetch).toHaveBeenCalledWith(
+      "http://backend:10000/api/persons?offset=20",
+      expect.objectContaining({ cache: "no-store" }),
+    );
+
+    // API結果の検証
+    expect(result).toEqual(page2Response);
+
+    // Presentation Component で結果を表示
+    render(
+      <ActressListPresentation
+        actresses={result?.persons || []}
+        totalCount={result?.total_count || 0}
+        currentPage={2}
+        itemsPerPage={20}
+        searchQuery=""
+        sortBy="name"
+        isLoading={false}
+        error={null}
+      />,
+    );
+
+    // 2ページ目のデータが表示されることを確認
+    expect(screen.getByText("女優一覧")).toBeInTheDocument();
+    expect(screen.getByText("テスト女優21")).toBeInTheDocument();
+    expect(screen.getByText("テスト女優22")).toBeInTheDocument();
+
+    // ページネーション情報が正しく表示されることを確認
+    expect(screen.getByText("21-40件 / 全13010件")).toBeInTheDocument();
+  });
+
+  it("API エラー時の統合エラーハンドリングフロー", async () => {
+    // APIエラーをシミュレート
+    mockFetch.mockReset();
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      statusText: "Internal Server Error",
+    });
+
+    // API関数でエラーハンドリングテスト
+    const { getActressList } = await import("./api");
+    const { ActressListPresentation } = await import("./presentations/ActressListPresentation");
+
+    const result = await getActressList();
+
+    // API結果がnullになることを確認
+    expect(result).toBeNull();
+
+    // Presentation Component でエラー状態を表示
+    render(
+      <ActressListPresentation
+        actresses={[]}
+        totalCount={0}
+        currentPage={1}
+        itemsPerPage={20}
+        searchQuery=""
+        sortBy="name"
+        isLoading={false}
+        error="データの取得に失敗しました。しばらく時間をおいて再度お試しください。"
+      />,
+    );
+
+    // エラーメッセージが表示されることを確認
+    expect(screen.getByText("エラーが発生しました")).toBeInTheDocument();
+    expect(
+      screen.getByText("データの取得に失敗しました。しばらく時間をおいて再度お試しください。"),
+    ).toBeInTheDocument();
+
+    // データが表示されないことを確認
+    expect(screen.queryByText("AIKA")).not.toBeInTheDocument();
+  });
+
+  it("空データ時の統合フロー", async () => {
+    const emptyResponse = {
+      persons: [],
+      total_count: 0,
+      has_more: false,
+    };
+
+    mockFetch.mockReset();
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => emptyResponse,
+    });
+
+    // API関数で空データテスト
+    const { getActressList } = await import("./api");
+    const { ActressListPresentation } = await import("./presentations/ActressListPresentation");
+
+    const result = await getActressList();
+
+    // API結果の検証
+    expect(result).toEqual(emptyResponse);
+
+    // Presentation Component で空状態を表示
+    render(
+      <ActressListPresentation
+        actresses={result?.persons || []}
+        totalCount={result?.total_count || 0}
+        currentPage={1}
+        itemsPerPage={20}
+        searchQuery=""
+        sortBy="name"
+        isLoading={false}
+        error={null}
+      />,
+    );
+
+    // 空状態メッセージが表示されることを確認
+    expect(screen.getByText("女優一覧")).toBeInTheDocument();
+    expect(screen.getByText("女優が見つかりませんでした")).toBeInTheDocument();
+    expect(screen.getByText("女優が登録されていません")).toBeInTheDocument();
+  });
+
+  it("ネットワークエラー時の統合エラーハンドリング", async () => {
+    // ネットワークエラーをシミュレート
+    mockFetch.mockReset();
+    mockFetch.mockRejectedValueOnce(new Error("Network connection failed"));
+
+    // API関数でネットワークエラーテスト
+    const { getActressList } = await import("./api");
+    const { ActressListPresentation } = await import("./presentations/ActressListPresentation");
+
+    const result = await getActressList();
+
+    // API結果がnullになることを確認
+    expect(result).toBeNull();
+
+    // Presentation Component でエラー状態を表示
+    render(
+      <ActressListPresentation
+        actresses={[]}
+        totalCount={0}
+        currentPage={1}
+        itemsPerPage={20}
+        searchQuery=""
+        sortBy="name"
+        isLoading={false}
+        error="データの取得に失敗しました。しばらく時間をおいて再度お試しください。"
+      />,
+    );
+
+    // ネットワークエラー時のエラーメッセージ確認
+    expect(screen.getByText("エラーが発生しました")).toBeInTheDocument();
+    expect(
+      screen.getByText("データの取得に失敗しました。しばらく時間をおいて再度お試しください。"),
+    ).toBeInTheDocument();
+  });
+
+  it("複数パラメータでの統合動作確認", async () => {
+    const complexSearchResponse = {
+      persons: [
+        {
+          person_id: 5,
+          name: "あいだ希空",
+          image_path: "http://pics.dmm.co.jp/mono/actjpgs/aida_noa.jpg",
+          dmm_actress_id: 1080439,
+        },
+      ],
+      total_count: 1,
+      has_more: false,
+    };
+
+    mockFetch.mockReset();
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => complexSearchResponse,
+    });
+
+    // API関数を複数パラメータで呼び出し
+    const { getActressList } = await import("./api");
+    const { ActressListPresentation } = await import("./presentations/ActressListPresentation");
+
+    const result = await getActressList({
+      search: "あいだ",
+      sort_by: "person_id",
+    });
+
+    // 複数パラメータが正しくAPIに送信されたか確認
+    expect(global.fetch).toHaveBeenCalledWith(
+      "http://backend:10000/api/persons?search=%E3%81%82%E3%81%84%E3%81%A0&sort_by=person_id",
+      expect.objectContaining({ cache: "no-store" }),
+    );
+
+    // API結果の検証
+    expect(result).toEqual(complexSearchResponse);
+
+    // Presentation Component で結果を表示
+    render(
+      <ActressListPresentation
+        actresses={result?.persons || []}
+        totalCount={result?.total_count || 0}
+        currentPage={1}
+        itemsPerPage={20}
+        searchQuery="あいだ"
+        sortBy="person_id"
+        isLoading={false}
+        error={null}
+      />,
+    );
+
+    // 結果が正しく表示されることを確認
+    expect(screen.getByText("女優一覧")).toBeInTheDocument();
+    expect(screen.getByText("あいだ希空")).toBeInTheDocument();
+    expect(screen.getByText("1名の女優が登録されています")).toBeInTheDocument();
+  });
+});

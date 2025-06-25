@@ -421,3 +421,136 @@ export async function searchImage(formData: FormData) {
 - **日本語メッセージ**: ユーザー向けメッセージは日本語で記述
 - **機能単位プレフィックス**: `createLogger("機能名")`で識別
 - **環境別レベル**: 本番環境では`info`以上、開発環境では`debug`以上
+
+## 8. テスト方針
+
+### 8.1 基本方針
+**必須**: `features`ディレクトリ内の機能は**統合テスト**を実装すること
+**禁止**: 細かい単位でのユニットテストは行わない
+
+### 8.2 統合テストの指針
+
+#### featuresディレクトリのテスト対象
+- **Container/Presentationalパターン**の完全なフロー
+- **API関数 → Presentationコンポーネント**の統合動作
+- **エラーハンドリング**を含む実際の使用フローの検証
+
+#### テスト実装パターン
+
+**最小限のモック原則**:
+- **必要最小限のモック**: Next.js router、fetchのみモック
+- **MSW使用禁止**: Mock Service Workerは使用せず、直接fetchをモック
+- **コンポーネント内部のモック禁止**: Containerコンポーネント内部のロジックはモックしない
+
+```typescript
+// features/actress-list/actress-list.test.tsx
+describe('ActressList Feature Integration Tests', () => {
+  beforeAll(() => {
+    global.fetch = mockFetch;
+  });
+
+  it('Container → API → Presentation の完全な統合フロー', async () => {
+    // 1. API関数を直接呼び出してテスト
+    const { getActressList } = await import('./api');
+    const { ActressListPresentation } = await import('./presentations/ActressListPresentation');
+    
+    const result = await getActressList();
+    
+    // 2. APIが正しく呼ばれたことを確認
+    expect(global.fetch).toHaveBeenCalledWith(
+      'http://backend:10000/api/persons',
+      expect.objectContaining({ cache: 'no-store' })
+    );
+
+    // 3. Presentation Component で結果を表示
+    render(
+      <ActressListPresentation 
+        actresses={result?.persons || []}
+        totalCount={result?.total_count || 0}
+        currentPage={1}
+        itemsPerPage={20}
+        searchQuery=""
+        sortBy="name"
+        isLoading={false}
+        error={null}
+      />
+    );
+
+    // 4. UIが正しく表示されることを確認
+    expect(screen.getByText('女優一覧')).toBeInTheDocument();
+    expect(screen.getByText('AIKA')).toBeInTheDocument();
+  });
+});
+```
+
+#### テストファイル配置
+- **コロケーション**: 機能ディレクトリ内に配置
+- **命名規則**: `*.test.tsx` または `*.test.ts`
+- **例**: `features/actress-list/actress-list.test.tsx`
+
+#### 統合テストの利点
+- **実際の使用フローの検証**: ユーザーが実際に体験する流れをテスト
+- **Container/Presentationalパターンの検証**: アーキテクチャが正しく動作することを確認
+- **API通信の検証**: 実際のAPIパラメータや戻り値の検証
+- **エラーハンドリングの検証**: APIエラーやネットワークエラーの適切な処理
+
+### 8.3 テスト必須シナリオ
+
+#### 基本動作テスト
+1. **正常フロー**: データ取得 → 表示の基本動作
+2. **検索機能**: パラメータ付きでのAPI呼び出しと結果表示
+3. **ページネーション**: オフセット計算とページ遷移
+4. **ソート機能**: ソートパラメータの送信と結果表示
+
+#### エラーハンドリングテスト
+1. **APIエラー**: サーバーエラー時の適切なエラー表示
+2. **ネットワークエラー**: 通信失敗時のフォールバック
+3. **空データ**: データが存在しない場合の表示
+4. **パラメータエラー**: 不正なパラメータでのAPI呼び出し
+
+### 8.4 テストで避けるべきパターン
+
+#### ❌ 避けるべきテスト
+```typescript
+// ❌ 過度に細かいユニットテスト
+it('API関数が正しいURLを構築する', () => {
+  // API内部実装の詳細テスト
+});
+
+// ❌ コンポーネント内部のステート管理テスト
+it('ローカルステートが正しく更新される', () => {
+  // useState内部の詳細テスト
+});
+```
+
+#### ✅ 推奨するテスト
+```typescript
+// ✅ 機能レベルの統合テスト
+it('検索機能の完全なフロー', async () => {
+  // 検索実行 → API呼び出し → 結果表示の一連のフロー
+});
+
+// ✅ エラーシナリオの統合テスト
+it('APIエラー時のユーザー体験', async () => {
+  // エラー発生 → エラー表示 → ユーザーへのフィードバック
+});
+```
+
+### 8.5 テストコマンド
+
+#### 開発時のテスト実行
+```bash
+# 特定の機能のテスト実行
+docker-compose exec frontend npm run test -- actress-list.test.tsx
+
+# テスト全体の実行
+docker-compose exec frontend npm run test
+
+# テストカバレッジ確認
+docker-compose exec frontend npm run test:coverage
+```
+
+#### CI/CDでのテスト実行
+- **必須**: 全ての統合テストがパスすること
+- **品質ゲート**: テスト失敗時はマージブロック
+- **パフォーマンス**: テスト実行時間の監視

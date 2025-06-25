@@ -36,3 +36,16 @@ class PersonDetailResponse(BaseModel):
     name: str
     image_path: str
     search_count: int
+
+class PersonListItem(BaseModel):
+    """人物リストアイテム"""
+    person_id: int
+    name: str
+    image_path: Optional[str]
+    dmm_actress_id: Optional[int]
+
+class PersonListResponse(BaseModel):
+    """人物リストレスポンス"""
+    persons: List[PersonListItem]
+    total_count: int
+    has_more: bool

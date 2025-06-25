@@ -1,7 +1,9 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Query
+from typing import Optional
 from src.database.face_database import FaceDatabase
+from src.database.person_database import PersonDatabase
 from src.database.ranking_database import RankingDatabase
-from src.api.models.response import PersonDetailResponse
+from src.api.models.response import PersonDetailResponse, PersonListResponse, PersonListItem
 from src.utils import log_utils
 
 router = APIRouter()
@@ -59,3 +61,72 @@ async def get_person_detail(person_id: int):
             face_db.close()
         if ranking_db is not None:
             ranking_db.close()
+
+@router.get("/persons", response_model=PersonListResponse)
+async def get_persons_list(
+    limit: int = Query(20, ge=1, le=100, description="取得する件数"),
+    offset: int = Query(0, ge=0, description="取得開始位置"),
+    search: Optional[str] = Query(None, description="名前での検索キーワード"),
+    sort_by: str = Query("name", pattern="^(name|person_id|created_at)$", description="ソート方法")
+):
+    """人物一覧を取得する
+    
+    Args:
+        limit (int): 取得する件数（1-100の範囲）
+        offset (int): 取得開始位置
+        search (Optional[str]): 名前での検索キーワード
+        sort_by (str): ソート方法 (name, person_id, created_at)
+        
+    Returns:
+        PersonListResponse: 人物一覧情報
+        
+    Raises:
+        HTTPException: エラーが発生した場合
+    """
+    person_db = None
+    
+    try:
+        # 人物一覧取得にはFAISSインデックスは不要なので、PersonDatabaseを直接使用
+        person_db = PersonDatabase()
+        
+        # 人物リストを取得
+        persons_data = person_db.get_persons_list(
+            limit=limit,
+            offset=offset,
+            search=search,
+            sort_by=sort_by
+        )
+        
+        # 総数を取得
+        total_count = person_db.get_persons_count(search=search)
+        
+        # レスポンスデータを構築
+        persons_items = []
+        for person in persons_data:
+            persons_items.append(PersonListItem(
+                person_id=person['person_id'],
+                name=person['name'],
+                image_path=person['base_image_path'],
+                dmm_actress_id=person['dmm_actress_id']
+            ))
+        
+        # has_moreを計算
+        has_more = (offset + limit) < total_count
+        
+        logger.info(f"人物一覧を取得: {len(persons_items)}件 (総数: {total_count})")
+        
+        return PersonListResponse(
+            persons=persons_items,
+            total_count=total_count,
+            has_more=has_more
+        )
+        
+    except Exception as e:
+        logger.error(f"人物一覧の取得でエラー: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="人物一覧の取得中にエラーが発生しました"
+        )
+    finally:
+        if person_db is not None:
+            person_db.close()

@@ -3,6 +3,8 @@ import { ImageUploadZone } from "@/features/image-upload/ImageUploadZone";
 import SearchRanking from "@/features/ranking/SearchRanking";
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import Link from "next/link";
+import { Users, Search } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "そっくりAV女優検索 - 妄想が、確信に変わる。",
@@ -53,6 +55,20 @@ export default function Home() {
   return (
     <main className="relative min-h-screen bg-[#111] text-white flex items-center justify-center p-4 overflow-hidden">
       <div className="relative z-10 max-w-4xl w-full mx-auto text-center flex flex-col justify-center items-center">
+        {/* ナビゲーションメニュー */}
+        <nav className="w-full mb-8">
+          <div className="flex justify-center gap-4">
+            <Link href="/actresses" className="flex items-center gap-2 px-4 py-2 bg-zinc-800/50 border border-zinc-700 rounded-lg hover:border-zinc-600 transition-all duration-300 hover:scale-105">
+              <Users className="w-4 h-4" />
+              <span className="text-sm">女優一覧</span>
+            </Link>
+            <Link href="/" className="flex items-center gap-2 px-4 py-2 bg-blue-600/50 border border-blue-500 rounded-lg">
+              <Search className="w-4 h-4" />
+              <span className="text-sm">顔検索</span>
+            </Link>
+          </div>
+        </nav>
+
         <h1 className="text-3xl font-bold mb-2">
           【開発中】
           <br />
