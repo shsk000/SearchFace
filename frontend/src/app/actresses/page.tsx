@@ -5,17 +5,18 @@ import ActressListContainer from "@/features/actress-list/containers/ActressList
 import { Content } from "@/components/content/Content";
 
 interface PageProps {
-  searchParams?: {
+  searchParams?: Promise<{
     page?: string;
     search?: string;
     sort_by?: string;
-  };
+  }>;
 }
 
 /**
  * 女優一覧ページ
  */
-export default function ActressListPage({ searchParams }: PageProps) {
+export default async function ActressListPage({ searchParams }: PageProps) {
+  const resolvedSearchParams = await searchParams;
   return (
     <Content
       as="main"
@@ -49,7 +50,7 @@ export default function ActressListPage({ searchParams }: PageProps) {
             </div>
           }
         >
-          <ActressListContainer searchParams={searchParams} />
+          <ActressListContainer searchParams={resolvedSearchParams} />
         </Suspense>
       </div>
     </Content>
