@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import type { PropsWithChildren, ElementType } from "react";
+import type { ElementType, PropsWithChildren } from "react";
 
 type ContentProps<T extends ElementType = "div"> = PropsWithChildren<{
   as?: T;

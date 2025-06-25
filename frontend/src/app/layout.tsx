@@ -5,9 +5,8 @@ import StructuredData from "@/components/StructuredData";
 import { Toaster } from "@/components/ui/sonner";
 import { AgeVerificationProvider } from "@/features/age-verification/age-verification-provider";
 import GoogleAnalytics from "@/features/analytics/google-analytics";
-import { isAgeVerified } from "@/lib/age-verification";
 import { BackgroundImages } from "@/features/background/BackgroundImages";
-import { Footer } from "@/components/footer/Footer";
+import { isAgeVerified } from "@/lib/age-verification";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",

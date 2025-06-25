@@ -1,7 +1,7 @@
+import ProductsContainer from "@/features/products/containers/ProductsContainer";
 import { getSearchSessionResults } from "../api";
 import { SearchResultsPresentation } from "../presentations/SearchResultsPresentation";
 import { formatSearchResults } from "../utils";
-import ProductsContainer from "@/features/products/containers/ProductsContainer";
 
 interface SearchResultsContainerProps {
   sessionId: string;
