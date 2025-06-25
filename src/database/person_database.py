@@ -544,6 +544,73 @@ class PersonDatabase:
             'created_at': row['created_at'],
             'metadata': json.loads(row['metadata']) if row['metadata'] else None
         } for row in rows]
+
+    def get_persons_list(self, limit: int = 20, offset: int = 0, search: Optional[str] = None, sort_by: str = "name") -> List[Dict[str, Any]]:
+        """人物リストを取得（ページネーション・検索・ソート対応）
+        
+        Args:
+            limit (int): 取得する件数の上限
+            offset (int): 取得開始位置
+            search (Optional[str]): 名前での検索キーワード
+            sort_by (str): ソート方法 ("name", "person_id", "created_at")
+            
+        Returns:
+            List[Dict[str, Any]]: 人物情報のリスト
+        """
+        # ベースクエリ
+        query = """
+            SELECT person_id, name, dmm_actress_id, base_image_path
+            FROM persons
+        """
+        params = []
+        
+        # 検索条件
+        if search:
+            query += " WHERE name LIKE ?"
+            params.append(f"%{search}%")
+        
+        # ソート条件
+        sort_columns = {
+            "name": "name",
+            "person_id": "person_id",
+            "created_at": "created_at"
+        }
+        sort_column = sort_columns.get(sort_by, "name")
+        query += f" ORDER BY {sort_column}"
+        
+        # ページネーション
+        query += " LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
+        
+        self.cursor.execute(query, params)
+        rows = self.cursor.fetchall()
+        
+        return [{
+            'person_id': row['person_id'],
+            'name': row['name'],
+            'dmm_actress_id': row['dmm_actress_id'],
+            'base_image_path': row['base_image_path']
+        } for row in rows]
+
+    def get_persons_count(self, search: Optional[str] = None) -> int:
+        """人物の総数を取得（検索条件対応）
+        
+        Args:
+            search (Optional[str]): 名前での検索キーワード
+            
+        Returns:
+            int: 条件に一致する人物の総数
+        """
+        query = "SELECT COUNT(*) as count FROM persons"
+        params = []
+        
+        if search:
+            query += " WHERE name LIKE ?"
+            params.append(f"%{search}%")
+        
+        self.cursor.execute(query, params)
+        row = self.cursor.fetchone()
+        return row['count'] if row else 0
     
     def get_persons_with_base_image(self, exclude_registered: bool = False, 
                                    limit: Optional[int] = None, 

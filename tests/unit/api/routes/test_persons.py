@@ -1,9 +1,6 @@
 import pytest
 from unittest.mock import patch, MagicMock
-try:
-    from fastapi.testclient import TestClient
-except ImportError:
-    from starlette.testclient import TestClient
+from fastapi.testclient import TestClient
 
 from src.api.main import app
 
@@ -13,14 +10,7 @@ class TestPersonsAPI:
     @pytest.fixture
     def client(self):
         """Test client fixture"""
-        # 互換性の問題を回避するためにより安全なパラメータで初期化
-        try:
-            return TestClient(app)
-        except TypeError:
-            # 新しいバージョンのhttpx/starlette用のフォールバック
-            import httpx
-            from starlette.applications import Starlette
-            return httpx.Client(app=app, base_url="http://testserver")
+        return TestClient(app)
 
     @patch('src.api.routes.persons.RankingDatabase')
     @patch('src.api.routes.persons.FaceDatabase')
@@ -113,3 +103,201 @@ class TestPersonsAPI:
         assert data['name'] == 'テスト女優2'
         assert data['image_path'] == ""
         assert data['search_count'] == 0
+
+    @patch('src.api.routes.persons.PersonDatabase')
+    def test_get_persons_list_success(self, mock_person_db_class, client):
+        """人物一覧取得の成功ケース"""
+        # PersonDatabaseのモックセットアップ
+        mock_person_db = MagicMock()
+        mock_person_db_class.return_value = mock_person_db
+
+        # モックデータ
+        mock_persons_data = [
+            {
+                'person_id': 1,
+                'name': 'テスト女優1',
+                'base_image_path': 'data/images/base/test1.jpg',
+                'dmm_actress_id': 12345
+            },
+            {
+                'person_id': 2,
+                'name': 'テスト女優2',
+                'base_image_path': None,
+                'dmm_actress_id': None
+            }
+        ]
+
+        mock_person_db.get_persons_list.return_value = mock_persons_data
+        mock_person_db.get_persons_count.return_value = 2
+
+        # APIリクエスト
+        response = client.get("/api/persons?limit=10&offset=0")
+
+        # レスポンス確認
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data['persons']) == 2
+        assert data['total_count'] == 2
+        assert data['has_more'] == False
+
+        # 最初の人物データ確認
+        first_person = data['persons'][0]
+        assert first_person['person_id'] == 1
+        assert first_person['name'] == 'テスト女優1'
+        assert first_person['image_path'] == 'data/images/base/test1.jpg'
+        assert first_person['dmm_actress_id'] == 12345
+
+        # 2番目の人物データ確認（null値の処理）
+        second_person = data['persons'][1]
+        assert second_person['person_id'] == 2
+        assert second_person['name'] == 'テスト女優2'
+        assert second_person['image_path'] is None
+        assert second_person['dmm_actress_id'] is None
+
+        # メソッド呼び出し確認
+        mock_person_db.get_persons_list.assert_called_once_with(
+            limit=10,
+            offset=0,
+            search=None,
+            sort_by="name"
+        )
+        mock_person_db.get_persons_count.assert_called_once_with(search=None)
+        mock_person_db.close.assert_called_once()
+
+    @patch('src.api.routes.persons.PersonDatabase')
+    def test_get_persons_list_with_search(self, mock_person_db_class, client):
+        """検索機能付き人物一覧取得のテスト"""
+        # PersonDatabaseのモックセットアップ
+        mock_person_db = MagicMock()
+        mock_person_db_class.return_value = mock_person_db
+
+        # 検索結果のモックデータ
+        mock_persons_data = [
+            {
+                'person_id': 1,
+                'name': 'AIKA',
+                'base_image_path': 'data/images/base/aika.jpg',
+                'dmm_actress_id': 1008887
+            }
+        ]
+
+        mock_person_db.get_persons_list.return_value = mock_persons_data
+        mock_person_db.get_persons_count.return_value = 1
+
+        # 検索パラメータ付きAPIリクエスト
+        response = client.get("/api/persons?search=AIKA&limit=20&sort_by=name")
+
+        # レスポンス確認
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data['persons']) == 1
+        assert data['total_count'] == 1
+        assert data['has_more'] == False
+
+        # 検索結果データ確認
+        person = data['persons'][0]
+        assert person['name'] == 'AIKA'
+
+        # メソッド呼び出し確認（検索パラメータ含む）
+        mock_person_db.get_persons_list.assert_called_once_with(
+            limit=20,
+            offset=0,
+            search="AIKA",
+            sort_by="name"
+        )
+        mock_person_db.get_persons_count.assert_called_once_with(search="AIKA")
+        mock_person_db.close.assert_called_once()
+
+    @patch('src.api.routes.persons.PersonDatabase')
+    def test_get_persons_list_with_pagination(self, mock_person_db_class, client):
+        """ページネーション機能のテスト"""
+        # PersonDatabaseのモックセットアップ
+        mock_person_db = MagicMock()
+        mock_person_db_class.return_value = mock_person_db
+
+        # 2ページ目のデータ（20件目以降）
+        mock_persons_data = [
+            {
+                'person_id': 21,
+                'name': 'テスト女優21',
+                'base_image_path': 'data/images/base/test21.jpg',
+                'dmm_actress_id': 21
+            }
+        ]
+
+        mock_person_db.get_persons_list.return_value = mock_persons_data
+        mock_person_db.get_persons_count.return_value = 100  # 総数100件
+
+        # 2ページ目のAPIリクエスト
+        response = client.get("/api/persons?limit=20&offset=20")
+
+        # レスポンス確認
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data['persons']) == 1
+        assert data['total_count'] == 100
+        assert data['has_more'] == True  # まだデータがあることを確認
+
+        # メソッド呼び出し確認（offset=20）
+        mock_person_db.get_persons_list.assert_called_once_with(
+            limit=20,
+            offset=20,
+            search=None,
+            sort_by="name"
+        )
+        mock_person_db.close.assert_called_once()
+
+    @patch('src.api.routes.persons.PersonDatabase')
+    def test_get_persons_list_validation_errors(self, mock_person_db_class, client):
+        """バリデーションエラーのテスト"""
+        # 無効なlimitパラメータ（範囲外）
+        response = client.get("/api/persons?limit=150")  # 上限100を超過
+        assert response.status_code == 422
+
+        # 無効なoffsetパラメータ（負の値）
+        response = client.get("/api/persons?offset=-1")
+        assert response.status_code == 422
+
+        # 無効なsort_byパラメータ
+        response = client.get("/api/persons?sort_by=invalid_sort")
+        assert response.status_code == 422
+
+    @patch('src.api.routes.persons.PersonDatabase')
+    def test_get_persons_list_sort_options(self, mock_person_db_class, client):
+        """ソート機能のテスト"""
+        # PersonDatabaseのモックセットアップ
+        mock_person_db = MagicMock()
+        mock_person_db_class.return_value = mock_person_db
+
+        mock_person_db.get_persons_list.return_value = []
+        mock_person_db.get_persons_count.return_value = 0
+
+        # 各ソートオプションをテスト
+        sort_options = ["name", "person_id", "created_at"]
+
+        for sort_by in sort_options:
+            response = client.get(f"/api/persons?sort_by={sort_by}")
+            assert response.status_code == 200
+
+            # 最後の呼び出しの引数を確認
+            args, kwargs = mock_person_db.get_persons_list.call_args
+            assert kwargs['sort_by'] == sort_by
+
+    @patch('src.api.routes.persons.PersonDatabase')
+    def test_get_persons_list_database_error(self, mock_person_db_class, client):
+        """データベースエラーのテスト"""
+        # PersonDatabaseのモックセットアップ（エラーを発生させる）
+        mock_person_db = MagicMock()
+        mock_person_db_class.return_value = mock_person_db
+        mock_person_db.get_persons_list.side_effect = Exception("Database connection error")
+
+        # APIリクエスト
+        response = client.get("/api/persons")
+
+        # エラーレスポンス確認
+        assert response.status_code == 500
+        data = response.json()
+        assert "人物一覧の取得中にエラーが発生しました" in data['detail']
+
+        # closeメソッドは必ず呼ばれることを確認
+        mock_person_db.close.assert_called_once()
