@@ -1,5 +1,6 @@
-import { getActressDetail, getDummyAffiliateProducts } from "@/features/actress-detail";
-import { ActressDetailCard } from "@/features/actress-detail";
+import { Content } from "@/components/content/Content";
+import ActressDetailContainer from "@/features/actress-detail/containers/ActressDetailContainer";
+import ProductsContainer from "@/features/products/containers/ProductsContainer";
 import { logger } from "@/lib/logger";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
@@ -11,25 +12,19 @@ interface ActressDetailPageProps {
 }
 
 async function ActressDetailContent({ personId }: { personId: number }) {
-  try {
-    logger.info("女優詳細ページデータを取得中", { personId });
+  logger.info("女優詳細ページ開始", { personId });
 
-    // 女優詳細情報を取得
-    const actress = await getActressDetail(personId);
+  return (
+    <div className="container mx-auto px-4 py-8 max-w-4xl">
+      {/* 女優詳細情報 */}
+      <ActressDetailContainer personId={personId} />
 
-    // ダミーのアフィリエイト商品を生成
-    const products = getDummyAffiliateProducts(actress.name);
-
-    logger.info("女優詳細ページデータを取得しました", {
-      actressName: actress.name,
-      productCount: products.length,
-    });
-
-    return <ActressDetailCard actress={actress} products={products} />;
-  } catch (error) {
-    logger.error("女優詳細ページでエラーが発生しました", { error, personId });
-    notFound();
-  }
+      {/* 関連商品セクション */}
+      <div className="mt-8">
+        <ProductsContainer personId={personId} limit={20} />
+      </div>
+    </div>
+  );
 }
 
 function ActressDetailLoading() {
@@ -78,11 +73,14 @@ export default async function ActressDetailPage({ params }: ActressDetailPagePro
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-zinc-900 via-black to-zinc-900">
+    <Content
+      as="main"
+      className="min-h-screen bg-gradient-to-br from-zinc-900 via-black to-zinc-900"
+    >
       <Suspense fallback={<ActressDetailLoading />}>
         <ActressDetailContent personId={personId} />
       </Suspense>
-    </div>
+    </Content>
   );
 }
 

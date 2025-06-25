@@ -1,4 +1,4 @@
-import { BackgroundImages } from "@/features/background/BackgroundImages";
+import { Footer } from "@/components/footer/Footer";
 import { ImageUploadZone } from "@/features/image-upload/ImageUploadZone";
 import SearchRanking from "@/features/ranking/SearchRanking";
 import type { Metadata } from "next";
@@ -52,7 +52,6 @@ export const metadata: Metadata = {
 export default function Home() {
   return (
     <main className="relative min-h-screen bg-[#111] text-white flex items-center justify-center p-4 overflow-hidden">
-      <BackgroundImages />
       <div className="relative z-10 max-w-4xl w-full mx-auto text-center flex flex-col justify-center items-center">
         <h1 className="text-3xl font-bold mb-2">
           【開発中】
@@ -76,10 +75,7 @@ export default function Home() {
           </Suspense>
         </div>
 
-        <footer className="mt-12 text-sm text-gray-500 relative z-10">
-          <p>18歳未満の方のご利用は固くお断りします。</p>
-          <p className="mt-1">画像は著作権に配慮したものをご利用ください。</p>
-        </footer>
+        <Footer />
       </div>
     </main>
   );
