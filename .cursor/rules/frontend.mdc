@@ -437,30 +437,33 @@ export async function searchImage(formData: FormData) {
 
 #### テスト実装パターン
 
-**最小限のモック原則**:
-- **必要最小限のモック**: Next.js router、fetchのみモック
-- **MSW使用禁止**: Mock Service Workerは使用せず、直接fetchをモック
+**MSWによるリアルなAPI モック原則**:
+- **MSW必須**: Mock Service Worker (MSW) を使用してAPIレスポンスをモック
+- **必要最小限のモック**: Next.js routerのみモック、fetchは実際のHTTPリクエストをMSWでインターセプト
 - **コンポーネント内部のモック禁止**: Containerコンポーネント内部のロジックはモックしない
 
 ```typescript
 // features/actress-list/actress-list.test.tsx
-describe('ActressList Feature Integration Tests', () => {
-  beforeAll(() => {
-    global.fetch = mockFetch;
-  });
+import { server } from '@/test/mocks/server';
+import { http, HttpResponse } from 'msw';
 
+describe('ActressList Feature Integration Tests', () => {
   it('Container → API → Presentation の完全な統合フロー', async () => {
-    // 1. API関数を直接呼び出してテスト
+    // 1. API関数を直接呼び出してテスト（MSWがレスポンスを提供）
     const { getActressList } = await import('./api');
     const { ActressListPresentation } = await import('./presentations/ActressListPresentation');
     
     const result = await getActressList();
     
-    // 2. APIが正しく呼ばれたことを確認
-    expect(global.fetch).toHaveBeenCalledWith(
-      'http://backend:10000/api/persons',
-      expect.objectContaining({ cache: 'no-store' })
-    );
+    // 2. API結果の検証（MSWが提供したデータ）
+    expect(result).toEqual({
+      persons: [
+        { person_id: 1, name: 'AIKA', image_path: '...', dmm_actress_id: 1008887 },
+        // ... MSWハンドラーで定義されたデータ
+      ],
+      total_count: 13010,
+      has_more: true,
+    });
 
     // 3. Presentation Component で結果を表示
     render(
@@ -480,6 +483,24 @@ describe('ActressList Feature Integration Tests', () => {
     expect(screen.getByText('女優一覧')).toBeInTheDocument();
     expect(screen.getByText('AIKA')).toBeInTheDocument();
   });
+
+  it('APIエラー時のエラーハンドリング', async () => {
+    // MSWでエラーレスポンスを一時的にオーバーライド
+    server.use(
+      http.get('http://backend:10000/api/persons', () => {
+        return HttpResponse.json(
+          { error: 'Internal Server Error' },
+          { status: 500 }
+        );
+      })
+    );
+
+    const { getActressList } = await import('./api');
+    const result = await getActressList();
+
+    // エラー時の適切な処理確認
+    expect(result).toBeNull();
+  });
 });
 ```
 
@@ -491,8 +512,15 @@ describe('ActressList Feature Integration Tests', () => {
 #### 統合テストの利点
 - **実際の使用フローの検証**: ユーザーが実際に体験する流れをテスト
 - **Container/Presentationalパターンの検証**: アーキテクチャが正しく動作することを確認
-- **API通信の検証**: 実際のAPIパラメータや戻り値の検証
-- **エラーハンドリングの検証**: APIエラーやネットワークエラーの適切な処理
+- **実際のHTTP通信の検証**: MSWによりブラウザ環境に近いAPIリクエスト・レスポンスをテスト
+- **リアルなエラーハンドリングの検証**: 実際のHTTPエラーレスポンスでの動作確認
+
+#### MSW使用の利点
+- **ブラウザ環境に近いテスト**: 実際のfetchAPIを使用してHTTPリクエストをインターセプト
+- **型安全性**: TypeScriptでAPIレスポンスの型定義が可能
+- **動的レスポンス**: リクエストパラメータに応じて動的にレスポンスを生成
+- **エラーシナリオの再現**: 様々なHTTPエラーステータスやネットワークエラーを簡単に再現
+- **開発者体験**: ブラウザの開発者ツールでネットワークタブにリクエストが表示される
 
 ### 8.3 テスト必須シナリオ
 
