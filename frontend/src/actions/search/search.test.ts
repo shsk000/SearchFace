@@ -115,4 +115,36 @@ describe("searchImage", () => {
     expect(result).toBeDefined();
     expect(result.results).toBeDefined();
   });
+
+  it("APIが空レスポンスを返した場合にSERVER_ERRORを投げる", async () => {
+    const mockFile = new File(["test"], "test.jpg", { type: "image/jpeg" });
+    const formData = new FormData();
+    formData.append("image", mockFile);
+
+    // MSWで空レスポンスを返す
+    server.use(
+      http.post("http://backend:10000/api/search", () => {
+        return new HttpResponse(null, { status: 200, statusText: "OK" });
+      }),
+    );
+
+    await expect(searchImage(formData)).rejects.toThrow(SearchResultError);
+    await expect(searchImage(formData)).rejects.toThrow("SERVER_ERROR");
+  });
+
+  it("APIが不正なJSONを返した場合にSERVER_ERRORを投げる", async () => {
+    const mockFile = new File(["test"], "test.jpg", { type: "image/jpeg" });
+    const formData = new FormData();
+    formData.append("image", mockFile);
+
+    // MSWで不正なJSONを返す
+    server.use(
+      http.post("http://backend:10000/api/search", () => {
+        return new HttpResponse("{ invalid json", { status: 200, statusText: "OK" });
+      }),
+    );
+
+    await expect(searchImage(formData)).rejects.toThrow(SearchResultError);
+    await expect(searchImage(formData)).rejects.toThrow("SERVER_ERROR");
+  });
 });

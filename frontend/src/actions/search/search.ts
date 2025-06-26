@@ -29,7 +29,27 @@ export async function searchImage(formData: FormData): Promise<SearchSuccessResp
       body: searchFormData,
     });
 
-    const data = await response.json();
+    const responseText = await response.text();
+    if (!responseText) {
+      logger.error("APIから空のレスポンスを受信", {
+        status: response.status,
+        statusText: response.statusText,
+      });
+      throw new SearchResultError("SERVER_ERROR");
+    }
+
+    let data: SearchSuccessResponse | Record<string, unknown>;
+    try {
+      data = JSON.parse(responseText);
+    } catch (parseError) {
+      logger.error("APIレスポンスのJSONパースに失敗", {
+        status: response.status,
+        statusText: response.statusText,
+        responseText: responseText.substring(0, 200),
+        parseError,
+      });
+      throw new SearchResultError("SERVER_ERROR");
+    }
 
     if (!response.ok) {
       logger.error("API検索エラー", {
@@ -57,8 +77,8 @@ export async function searchImage(formData: FormData): Promise<SearchSuccessResp
     }
 
     logger.info("画像検索成功", {
-      resultsCount: data.results?.length,
-      processingTime: data.processing_time,
+      resultsCount: validationResult.data.results?.length,
+      processingTime: validationResult.data.processing_time,
     });
 
     return validationResult.data;
