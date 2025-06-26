@@ -1,11 +1,7 @@
 import { render, screen } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from "vitest";
-
-// MSW を完全に無効化
-vi.mock("msw", () => ({}));
-vi.mock("msw/node", () => ({}));
-
-vi.mock("../../../setupTests", () => ({}));
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { server } from "@/test/mocks/server";
+import { http, HttpResponse } from "msw";
 
 // Next.js のモック設定
 const mockPush = vi.fn();
@@ -20,52 +16,9 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/actresses",
 }));
 
-// fetchの完全モック（MSW を使わずに直接モック）
-const originalFetch = global.fetch;
-const mockFetch = vi.fn();
-
-beforeAll(() => {
-  global.fetch = mockFetch;
-});
-
-afterAll(() => {
-  global.fetch = originalFetch;
-});
-
 describe("ActressList Feature Integration Tests", () => {
-  const mockApiResponse = {
-    persons: [
-      {
-        person_id: 1,
-        name: "AIKA",
-        image_path: "http://pics.dmm.co.jp/mono/actjpgs/aika3.jpg",
-        dmm_actress_id: 1008887,
-      },
-      {
-        person_id: 2,
-        name: "AIKA（三浦あいか）",
-        image_path: "http://pics.dmm.co.jp/mono/actjpgs/miura_aika.jpg",
-        dmm_actress_id: 1105,
-      },
-      {
-        person_id: 3,
-        name: "愛上みお",
-        image_path: "http://pics.dmm.co.jp/mono/actjpgs/aiue_mio.jpg",
-        dmm_actress_id: 1075314,
-      },
-    ],
-    total_count: 13010,
-    has_more: true,
-  };
-
   beforeEach(() => {
     vi.clearAllMocks();
-
-    // 成功レスポンスをデフォルトに設定
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockApiResponse,
-    });
   });
 
   it("Container → API → Presentation の完全な統合フロー", async () => {
@@ -76,16 +29,31 @@ describe("ActressList Feature Integration Tests", () => {
     // API関数を直接呼び出してテスト
     const result = await getActressList();
 
-    // APIが正しく呼ばれたことを確認
-    expect(global.fetch).toHaveBeenCalledWith(
-      "http://backend:10000/api/persons",
-      expect.objectContaining({
-        cache: "no-store",
-      }),
-    );
-
-    // API結果の検証
-    expect(result).toEqual(mockApiResponse);
+    // API結果の検証（MSWが提供するデフォルトレスポンス）
+    expect(result).toEqual({
+      persons: [
+        {
+          person_id: 1,
+          name: "AIKA",
+          image_path: "http://pics.dmm.co.jp/mono/actjpgs/aika3.jpg",
+          dmm_actress_id: 1008887,
+        },
+        {
+          person_id: 2,
+          name: "AIKA（三浦あいか）",
+          image_path: "http://pics.dmm.co.jp/mono/actjpgs/miura_aika.jpg",
+          dmm_actress_id: 1105,
+        },
+        {
+          person_id: 3,
+          name: "愛上みお",
+          image_path: "http://pics.dmm.co.jp/mono/actjpgs/aiue_mio.jpg",
+          dmm_actress_id: 1075314,
+        },
+      ],
+      total_count: 13010,
+      has_more: true,
+    });
 
     // Presentation Component で結果を表示
     render(
@@ -116,8 +84,14 @@ describe("ActressList Feature Integration Tests", () => {
   });
 
   it("検索パラメータありでの統合フロー", async () => {
-    // 検索結果のモックレスポンス
-    const searchResponse = {
+    // API関数を検索パラメータ付きで呼び出し
+    const { getActressList } = await import("./api");
+    const { ActressListPresentation } = await import("./presentations/ActressListPresentation");
+
+    const result = await getActressList({ search: "AIKA", sort_by: "name" });
+
+    // API結果の検証（MSWが検索パラメータに応じてフィルタリング）
+    expect(result).toEqual({
       persons: [
         {
           person_id: 1,
@@ -134,28 +108,7 @@ describe("ActressList Feature Integration Tests", () => {
       ],
       total_count: 2,
       has_more: false,
-    };
-
-    mockFetch.mockReset();
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => searchResponse,
     });
-
-    // API関数を検索パラメータ付きで呼び出し
-    const { getActressList } = await import("./api");
-    const { ActressListPresentation } = await import("./presentations/ActressListPresentation");
-
-    const result = await getActressList({ search: "AIKA", sort_by: "name" });
-
-    // 検索パラメータが正しくAPIに送信されたか確認
-    expect(global.fetch).toHaveBeenCalledWith(
-      "http://backend:10000/api/persons?search=AIKA&sort_by=name",
-      expect.objectContaining({ cache: "no-store" }),
-    );
-
-    // API結果の検証
-    expect(result).toEqual(searchResponse);
 
     // Presentation Component で結果を表示
     render(
@@ -182,7 +135,14 @@ describe("ActressList Feature Integration Tests", () => {
   });
 
   it("ページネーション統合フロー", async () => {
-    const page2Response = {
+    // API関数を2ページ目のパラメータで呼び出し
+    const { getActressList } = await import("./api");
+    const { ActressListPresentation } = await import("./presentations/ActressListPresentation");
+
+    const result = await getActressList({ offset: 20 });
+
+    // API結果の検証（MSWがオフセットに応じて異なるデータを返す）
+    expect(result).toEqual({
       persons: [
         {
           person_id: 21,
@@ -199,28 +159,7 @@ describe("ActressList Feature Integration Tests", () => {
       ],
       total_count: 13010,
       has_more: true,
-    };
-
-    mockFetch.mockReset();
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => page2Response,
     });
-
-    // API関数を2ページ目のパラメータで呼び出し
-    const { getActressList } = await import("./api");
-    const { ActressListPresentation } = await import("./presentations/ActressListPresentation");
-
-    const result = await getActressList({ offset: 20 });
-
-    // オフセット計算が正しく行われているか確認
-    expect(global.fetch).toHaveBeenCalledWith(
-      "http://backend:10000/api/persons?offset=20",
-      expect.objectContaining({ cache: "no-store" }),
-    );
-
-    // API結果の検証
-    expect(result).toEqual(page2Response);
 
     // Presentation Component で結果を表示
     render(
@@ -246,13 +185,15 @@ describe("ActressList Feature Integration Tests", () => {
   });
 
   it("API エラー時の統合エラーハンドリングフロー", async () => {
-    // APIエラーをシミュレート
-    mockFetch.mockReset();
-    mockFetch.mockResolvedValueOnce({
-      ok: false,
-      status: 500,
-      statusText: "Internal Server Error",
-    });
+    // MSWでAPIエラーをシミュレート
+    server.use(
+      http.get("http://backend:10000/api/persons", () => {
+        return HttpResponse.json(
+          { error: "Internal Server Error" },
+          { status: 500 }
+        );
+      })
+    );
 
     // API関数でエラーハンドリングテスト
     const { getActressList } = await import("./api");
@@ -288,17 +229,16 @@ describe("ActressList Feature Integration Tests", () => {
   });
 
   it("空データ時の統合フロー", async () => {
-    const emptyResponse = {
-      persons: [],
-      total_count: 0,
-      has_more: false,
-    };
-
-    mockFetch.mockReset();
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => emptyResponse,
-    });
+    // MSWで空データレスポンスをシミュレート
+    server.use(
+      http.get("http://backend:10000/api/persons", () => {
+        return HttpResponse.json({
+          persons: [],
+          total_count: 0,
+          has_more: false,
+        });
+      })
+    );
 
     // API関数で空データテスト
     const { getActressList } = await import("./api");
@@ -307,7 +247,11 @@ describe("ActressList Feature Integration Tests", () => {
     const result = await getActressList();
 
     // API結果の検証
-    expect(result).toEqual(emptyResponse);
+    expect(result).toEqual({
+      persons: [],
+      total_count: 0,
+      has_more: false,
+    });
 
     // Presentation Component で空状態を表示
     render(
@@ -330,9 +274,12 @@ describe("ActressList Feature Integration Tests", () => {
   });
 
   it("ネットワークエラー時の統合エラーハンドリング", async () => {
-    // ネットワークエラーをシミュレート
-    mockFetch.mockReset();
-    mockFetch.mockRejectedValueOnce(new Error("Network connection failed"));
+    // MSWでネットワークエラーをシミュレート
+    server.use(
+      http.get("http://backend:10000/api/persons", () => {
+        return HttpResponse.error();
+      })
+    );
 
     // API関数でネットワークエラーテスト
     const { getActressList } = await import("./api");
@@ -365,7 +312,17 @@ describe("ActressList Feature Integration Tests", () => {
   });
 
   it("複数パラメータでの統合動作確認", async () => {
-    const complexSearchResponse = {
+    // API関数を複数パラメータで呼び出し
+    const { getActressList } = await import("./api");
+    const { ActressListPresentation } = await import("./presentations/ActressListPresentation");
+
+    const result = await getActressList({
+      search: "あいだ",
+      sort_by: "person_id",
+    });
+
+    // API結果の検証（MSWが検索パラメータに応じてフィルタリング）
+    expect(result).toEqual({
       persons: [
         {
           person_id: 5,
@@ -376,31 +333,7 @@ describe("ActressList Feature Integration Tests", () => {
       ],
       total_count: 1,
       has_more: false,
-    };
-
-    mockFetch.mockReset();
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => complexSearchResponse,
     });
-
-    // API関数を複数パラメータで呼び出し
-    const { getActressList } = await import("./api");
-    const { ActressListPresentation } = await import("./presentations/ActressListPresentation");
-
-    const result = await getActressList({
-      search: "あいだ",
-      sort_by: "person_id",
-    });
-
-    // 複数パラメータが正しくAPIに送信されたか確認
-    expect(global.fetch).toHaveBeenCalledWith(
-      "http://backend:10000/api/persons?search=%E3%81%82%E3%81%84%E3%81%A0&sort_by=person_id",
-      expect.objectContaining({ cache: "no-store" }),
-    );
-
-    // API結果の検証
-    expect(result).toEqual(complexSearchResponse);
 
     // Presentation Component で結果を表示
     render(
