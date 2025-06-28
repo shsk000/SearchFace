@@ -1,7 +1,8 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { toast } from "sonner";
 import { server } from "../../test/mocks/server";
 import { ImageUploadZone } from "./ImageUploadZone";
 
@@ -11,6 +12,14 @@ vi.mock("next/navigation", () => ({
     push: vi.fn(),
     replace: vi.fn(),
   }),
+}));
+
+// Sonner toast のモック設定
+vi.mock("sonner", () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+  },
 }));
 
 describe("ImageUploadZone - Clipboard Paste Functionality", () => {
@@ -89,8 +98,8 @@ describe("ImageUploadZone - Clipboard Paste Functionality", () => {
     await user.click(pasteButton);
 
     await waitFor(() => {
-      // 成功メッセージが表示されることを確認
-      expect(screen.getByText("クリップボードから画像を読み込みました！")).toBeInTheDocument();
+      // トーストの成功メッセージが呼ばれることを確認
+      expect(toast.success).toHaveBeenCalledWith("クリップボードから画像を読み込みました！");
     });
 
     // クリップボードAPIが呼ばれたことを確認
@@ -118,8 +127,10 @@ describe("ImageUploadZone - Clipboard Paste Functionality", () => {
     await user.click(pasteButton);
 
     await waitFor(() => {
-      // エラーメッセージが表示されることを確認
-      expect(screen.getByText("クリップボードに画像が見つかりません")).toBeInTheDocument();
+      // トーストのエラーメッセージが呼ばれることを確認
+      expect(toast.error).toHaveBeenCalledWith("クリップボードに画像が見つかりません", {
+        closeButton: true,
+      });
     });
 
     // クリップボードAPIが呼ばれたことを確認
@@ -143,8 +154,10 @@ describe("ImageUploadZone - Clipboard Paste Functionality", () => {
     await user.click(pasteButton);
 
     await waitFor(() => {
-      // 権限拒否のエラーメッセージが表示されることを確認
-      expect(screen.getByText("クリップボードへのアクセスが拒否されました")).toBeInTheDocument();
+      // 権限拒否のトーストエラーメッセージが呼ばれることを確認
+      expect(toast.error).toHaveBeenCalledWith("クリップボードへのアクセスが拒否されました", {
+        closeButton: true,
+      });
     });
   });
 
@@ -168,8 +181,8 @@ describe("ImageUploadZone - Clipboard Paste Functionality", () => {
     fireEvent.keyDown(document, { key: 'v', ctrlKey: true });
 
     await waitFor(() => {
-      // 成功メッセージが表示されることを確認
-      expect(screen.getByText("クリップボードから画像を読み込みました！")).toBeInTheDocument();
+      // トーストの成功メッセージが呼ばれることを確認
+      expect(toast.success).toHaveBeenCalledWith("クリップボードから画像を読み込みました！");
     });
 
     expect(mockClipboard.read).toHaveBeenCalledTimes(1);
@@ -195,8 +208,8 @@ describe("ImageUploadZone - Clipboard Paste Functionality", () => {
     fireEvent.keyDown(document, { key: 'v', metaKey: true });
 
     await waitFor(() => {
-      // 成功メッセージが表示されることを確認
-      expect(screen.getByText("クリップボードから画像を読み込みました！")).toBeInTheDocument();
+      // トーストの成功メッセージが呼ばれることを確認
+      expect(toast.success).toHaveBeenCalledWith("クリップボードから画像を読み込みました！");
     });
 
     expect(mockClipboard.read).toHaveBeenCalledTimes(1);
@@ -232,16 +245,18 @@ describe("ImageUploadZone - Clipboard Paste Functionality", () => {
       expect(screen.getByText("📋 クリップボードから貼り付け")).toBeInTheDocument();
     });
 
-    // ファイルを選択
-    const fileInput = screen.getByRole("button", { name: /画像をアップロード/ });
+    // ファイル入力要素を取得
+    const fileInput = document.getElementById("fileInput") as HTMLInputElement;
     const file = new File(["test"], "test.jpg", { type: "image/jpeg" });
     
-    // ドラッグ&ドロップをシミュレート
-    fireEvent.drop(fileInput, {
-      dataTransfer: {
-        files: [file],
-      },
+    // ファイルを直接設定
+    Object.defineProperty(fileInput, 'files', {
+      value: [file],
+      configurable: true
     });
+    
+    // changeイベントを発火
+    fireEvent.change(fileInput);
 
     await waitFor(() => {
       // ペーストボタンが非表示になることを確認
@@ -251,8 +266,8 @@ describe("ImageUploadZone - Clipboard Paste Functionality", () => {
 
   it("ファイルサイズが大きすぎる場合、クリップボードペーストでもエラーが表示される", async () => {
     // 大きなサイズの画像データをモック（500KB以上）
-    const largeImageData = new Array(600 * 1024).fill(0); // 600KB
-    const mockImageBlob = new Blob(largeImageData, { type: "image/png" });
+    const largeImageData = "a".repeat(600 * 1024); // 600KB の文字列
+    const mockImageBlob = new Blob([largeImageData], { type: "image/png" });
     const mockClipboardItem = {
       types: ["image/png"],
       getType: vi.fn().mockResolvedValue(mockImageBlob),
@@ -271,8 +286,11 @@ describe("ImageUploadZone - Clipboard Paste Functionality", () => {
     await user.click(pasteButton);
 
     await waitFor(() => {
-      // ファイルサイズエラーメッセージが表示されることを確認
-      expect(screen.getByText(/ファイルサイズが大きすぎます/)).toBeInTheDocument();
-    }, { timeout: 10000 });
+      // ファイルサイズエラーのトーストメッセージが呼ばれることを確認
+      expect(toast.error).toHaveBeenCalledWith(
+        expect.stringContaining("ファイルサイズが大きすぎます"),
+        { closeButton: true }
+      );
+    }, { timeout: 3000 });
   });
 });
