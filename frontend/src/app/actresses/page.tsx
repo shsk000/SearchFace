@@ -55,6 +55,6 @@ export default async function ActressListPage({ searchParams }: PageProps) {
 }
 
 export const metadata = {
-  title: "女優一覧 | SearchFace",
+  title: "女優一覧",
   description: "登録されている女優の一覧ページです。名前で検索や並び替えが可能です。",
 };

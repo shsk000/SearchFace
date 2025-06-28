@@ -84,7 +84,7 @@ export default async function ActressDetailPage({ params }: ActressDetailPagePro
 export async function generateMetadata({ params }: ActressDetailPageProps) {
   const { person_id } = await params;
   return {
-    title: "女優詳細 | SearchFace",
+    title: "女優詳細",
     description: `女優ID: ${person_id}の詳細情報ページ`,
   };
 }
