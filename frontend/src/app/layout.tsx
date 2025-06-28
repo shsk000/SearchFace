@@ -64,7 +64,7 @@ export default async function RootLayout({
         <GoogleAnalytics />
         <StructuredData />
         <AgeVerificationProvider isAgeVerified={ageVerified}>
-          <main className="relative min-h-screen bg-[#111] text-white flex items-center justify-center p-4 overflow-hidden pt-14">
+          <main className="relative min-h-screen text-white flex items-center justify-center p-4 overflow-hidden pt-14 bg-gradient-to-br from-[#111] via-[#1a1a1a] to-[#ee2737]/40">
             {children}
           </main>
         </AgeVerificationProvider>
