@@ -18,7 +18,7 @@ interface PageProps {
 export default async function ActressListPage({ searchParams }: PageProps) {
   const resolvedSearchParams = await searchParams;
   return (
-    <Content className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900">
+    <Content>
       <div className="container mx-auto px-4 py-8">
         {/* ナビゲーションメニュー */}
         <nav className="w-full mb-8">
