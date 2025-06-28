@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import Link from "next/link";
 import { Users, Search } from "lucide-react";
+import { Content } from "@/components/content/Content";
 
 export const metadata: Metadata = {
   title: "そっくりAV女優検索 - 妄想が、確信に変わる。",
@@ -53,46 +54,52 @@ export const metadata: Metadata = {
 
 export default function Home() {
   return (
-    <main className="relative min-h-screen bg-[#111] text-white flex items-center justify-center p-4 overflow-hidden">
-      <div className="relative z-10 max-w-4xl w-full mx-auto text-center flex flex-col justify-center items-center">
-        {/* ナビゲーションメニュー */}
-        <nav className="w-full mb-8">
-          <div className="flex justify-center gap-4">
-            <Link href="/actresses" className="flex items-center gap-2 px-4 py-2 bg-zinc-800/50 border border-zinc-700 rounded-lg hover:border-zinc-600 transition-all duration-300 hover:scale-105">
-              <Users className="w-4 h-4" />
-              <span className="text-sm">女優一覧</span>
-            </Link>
-            <Link href="/" className="flex items-center gap-2 px-4 py-2 bg-blue-600/50 border border-blue-500 rounded-lg">
-              <Search className="w-4 h-4" />
-              <span className="text-sm">顔検索</span>
-            </Link>
-          </div>
-        </nav>
-
-        <h1 className="text-3xl font-bold mb-2">
-          【開発中】
-          <br />
-          妄想が、確信に変わる。
-        </h1>
-        <p className="text-lg mb-6">画像をアップするだけで、そっくりなAV女優が見つかる。</p>
-
-        <ImageUploadZone />
-
-        {/* ランキング表示 - 検索inputの下部に配置 */}
-        <div className="w-full mt-8">
-          <Suspense
-            fallback={
-              <div className="bg-zinc-900/90 border-zinc-700 backdrop-blur-sm rounded-xl p-6">
-                <p className="text-gray-400 text-center">ランキングを読み込み中...</p>
-              </div>
-            }
+    <Content className="relative z-10 max-w-4xl w-full mx-auto text-center flex flex-col justify-center items-center">
+      {/* ナビゲーションメニュー */}
+      <nav className="w-full mb-8">
+        <div className="flex justify-center gap-4">
+          <Link
+            href="/actresses"
+            className="flex items-center gap-2 px-4 py-2 bg-zinc-800/50 border border-zinc-700 rounded-lg hover:border-[#ee2737] hover:text-[#ee2737] transition-all duration-300 hover:scale-105"
           >
-            <SearchRanking />
-          </Suspense>
+            <Users className="w-4 h-4" />
+            <span className="text-sm">女優一覧</span>
+          </Link>
+          <Link
+            href="/"
+            className="flex items-center gap-2 px-4 py-2 bg-[#ee2737]/90 border border-[#ee2737] rounded-lg text-white font-semibold shadow-md hover:bg-[#d81e2b] transition-all duration-300 hover:scale-105"
+          >
+            <Search className="w-4 h-4" />
+            <span className="text-sm">顔検索</span>
+          </Link>
         </div>
+      </nav>
 
-        <Footer />
+      <h1 className="text-4xl font-extrabold mb-4 text-white drop-shadow-lg">
+        顔画像から、そっくりなAV女優をAIで一発検索！
+      </h1>
+      <p className="text-lg mb-8 text-gray-200 font-medium">
+        画像をアップロードするだけで、AIがあなたの"そっくりAV女優"を瞬時に見つけます。
+        <br className="hidden md:block" />
+        プライバシーも安心・無料でご利用いただけます。
+      </p>
+
+      <ImageUploadZone />
+
+      {/* ランキング表示 - 検索inputの下部に配置 */}
+      <div className="w-full mt-8">
+        <Suspense
+          fallback={
+            <div className="bg-zinc-900/90 border-zinc-700 backdrop-blur-sm rounded-xl p-6">
+              <p className="text-gray-400 text-center">ランキングを読み込み中...</p>
+            </div>
+          }
+        >
+          <SearchRanking />
+        </Suspense>
       </div>
-    </main>
+
+      <Footer />
+    </Content>
   );
 }

@@ -76,7 +76,7 @@ export function SearchResultsPresentation({
  */
 function ErrorDisplay({ error }: { error: string }) {
   return (
-    <main className="relative min-h-screen bg-zinc-900 text-white p-4 overflow-hidden">
+    <div className="relative min-h-screen bg-zinc-900 text-white p-4 overflow-hidden">
       <div className="relative z-10 max-w-7xl mx-auto flex items-center justify-center min-h-screen">
         <div className="text-center">
           <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
@@ -90,7 +90,7 @@ function ErrorDisplay({ error }: { error: string }) {
           </Link>
         </div>
       </div>
-    </main>
+    </div>
   );
 }
 
@@ -99,7 +99,7 @@ function ErrorDisplay({ error }: { error: string }) {
  */
 function SearchResultsNotFound() {
   return (
-    <main className="relative min-h-screen bg-zinc-900 text-white p-4 overflow-hidden">
+    <div className="relative min-h-screen bg-zinc-900 text-white p-4 overflow-hidden">
       <div className="relative z-10 max-w-7xl mx-auto flex items-center justify-center min-h-screen">
         <div className="text-center">
           <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
@@ -113,7 +113,7 @@ function SearchResultsNotFound() {
           </Link>
         </div>
       </div>
-    </main>
+    </div>
   );
 }
 
@@ -122,7 +122,7 @@ function SearchResultsNotFound() {
  */
 function SearchResultsEmpty() {
   return (
-    <main className="relative min-h-screen bg-zinc-900 text-white p-4 overflow-hidden">
+    <div className="relative min-h-screen bg-zinc-900 text-white p-4 overflow-hidden">
       <div className="relative z-10 max-w-7xl mx-auto flex items-center justify-center min-h-screen">
         <div className="text-center">
           <h2 className="text-xl font-bold mb-4">検索結果が見つかりませんでした</h2>
@@ -135,7 +135,7 @@ function SearchResultsEmpty() {
           </Link>
         </div>
       </div>
-    </main>
+    </div>
   );
 }
 

@@ -57,19 +57,19 @@ export function ImageUploadZone({ onSearchComplete }: ImageUploadZoneProps) {
     }
   };
 
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+  const handleDragOver = (e: React.DragEvent<HTMLButtonElement>) => {
     e.preventDefault();
     if (!isSearching) {
       setIsDragOver(true);
     }
   };
 
-  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+  const handleDragLeave = (e: React.DragEvent<HTMLButtonElement>) => {
     e.preventDefault();
     setIsDragOver(false);
   };
 
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+  const handleDrop = (e: React.DragEvent<HTMLButtonElement>) => {
     e.preventDefault();
     setIsDragOver(false);
 
@@ -119,15 +119,21 @@ export function ImageUploadZone({ onSearchComplete }: ImageUploadZoneProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div
-        className={`w-full bg-[#1a1a1a] border border-gray-700 p-6 rounded-xl transition-colors duration-200 ${
-          isSearching
-            ? "border-pink-500 cursor-not-allowed"
-            : isDragOver
-              ? "border-pink-400 bg-pink-950/20"
-              : "hover:border-pink-500 cursor-pointer"
-        }`}
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="text-xl font-bold text-white mb-2 text-center drop-shadow-lg">
+        画像をアップロードしてそっくりAV女優を検索！
+      </div>
+      <button
+        type="button"
+        className={`w-full max-w-md mx-auto bg-[#18181b]/80 border-2 p-8 rounded-2xl shadow-xl transition-all duration-300
+          ${
+            isSearching
+              ? "border-[#ee2737] ring-2 ring-[#ee2737]/40 cursor-not-allowed"
+              : isDragOver
+                ? "border-[#ee2737] ring-2 ring-[#ee2737]/60 scale-105 bg-[#ee2737]/10"
+                : "border-zinc-700 hover:border-[#ee2737] hover:shadow-2xl hover:scale-105 cursor-pointer"
+          }
+        `}
         onClick={() => !isSearching && document.getElementById("fileInput")?.click()}
         onKeyDown={(e) =>
           e.key === "Enter" && !isSearching && document.getElementById("fileInput")?.click()
@@ -135,6 +141,9 @@ export function ImageUploadZone({ onSearchComplete }: ImageUploadZoneProps) {
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
+        tabIndex={0}
+        aria-label="画像をアップロード"
+        disabled={isSearching}
       >
         <input
           id="fileInput"
@@ -146,19 +155,19 @@ export function ImageUploadZone({ onSearchComplete }: ImageUploadZoneProps) {
         <div className="flex flex-col items-center justify-center py-8">
           {isSearching ? (
             <>
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500 mb-4" />
-              <div className="text-base text-pink-400 mb-2">画像を検索中...</div>
-              <div className="text-xs text-gray-500">しばらくお待ちください</div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#ee2737] mb-4" />
+              <div className="text-base text-[#ee2737] mb-2">画像を検索中...</div>
+              <div className="text-xs text-gray-400">しばらくお待ちください</div>
             </>
           ) : (
             <>
-              <div className="text-3xl mb-2">🖼️</div>
-              <div className="text-base text-gray-300 mb-2">
-                {isDragOver ? "ファイルをドロップ" : "画像を選択"}
+              <div className="text-4xl mb-2">🖼️</div>
+              <div className="text-lg text-white font-semibold mb-2">
+                {isDragOver ? "ここにドロップ" : "画像を選択"}
               </div>
-              <div className="text-xs text-gray-500">
+              <div className="text-xs text-gray-400">
                 {isDragOver
-                  ? "ここにドロップしてください"
+                  ? "画像ファイルをここにドロップしてください"
                   : "クリックまたはドラッグ&ドロップ（500KB以下）"}
               </div>
             </>
@@ -169,21 +178,21 @@ export function ImageUploadZone({ onSearchComplete }: ImageUploadZoneProps) {
             <Image
               src={previewUrl}
               alt="preview"
-              width={200}
-              height={200}
-              className="rounded-lg mx-auto"
+              width={220}
+              height={220}
+              className="rounded-lg mx-auto shadow-lg border-2 border-[#ee2737]/60"
             />
           </div>
         )}
-      </div>
+      </button>
       <Button
         type="submit"
-        className="w-full bg-pink-600 hover:bg-pink-700"
+        className="w-full h-14 text-lg font-bold bg-[#ee2737] hover:bg-[#d81e2b] shadow-lg transition-all duration-200 rounded-xl"
         disabled={!selectedImage || isSearching}
       >
         {isSearching ? (
           <div className="flex items-center space-x-2">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
             <span>検索中...</span>
           </div>
         ) : (

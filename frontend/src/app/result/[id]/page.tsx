@@ -10,7 +10,7 @@ export default async function ResultPage({ params }: ResultPageProps) {
   const { id } = await params;
 
   return (
-    <Content as="main">
+    <Content>
       <SearchResultsContainer sessionId={id} />
       <Footer />
     </Content>
