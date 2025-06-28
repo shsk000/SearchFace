@@ -1,9 +1,4 @@
-User-agent: *
-Allow: /
-
-# Sitemap
 Sitemap: https://www.sokkuri-av.lol/sitemap.xml
 
-# Crawl-delay for other bots
 User-agent: *
-Crawl-delay: 1
+Allow: /
