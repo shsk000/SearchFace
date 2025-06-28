@@ -45,7 +45,7 @@ export function SearchResultsPresentation({
       <div className="mb-6">
         <h2 className="text-lg font-semibold mb-4 text-center">類似度の高い人物</h2>
 
-        {/* レスポンシブレイアウト */}
+        {/* レスポンシブレイアウト - 3件データとの後方互換性を保持 */}
         <div className="max-w-6xl mx-auto">
           {/* 大画面: 1行神殿風レイアウト (800px以上) */}
           <div className="hidden min-[800px]:flex items-end justify-center gap-4">
