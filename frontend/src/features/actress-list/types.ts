@@ -19,7 +19,7 @@ export interface ActressListParams {
   limit?: number;
   offset?: number;
   search?: string;
-  sort_by?: 'name' | 'person_id' | 'created_at';
+  sort_by?: "name" | "person_id" | "created_at";
 }
 
 export interface ActressCardProps {

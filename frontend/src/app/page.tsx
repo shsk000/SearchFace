@@ -1,11 +1,11 @@
+import { Content } from "@/components/content/Content";
 import { Footer } from "@/components/footer/Footer";
 import { ImageUploadZone } from "@/features/image-upload/ImageUploadZone";
 import SearchRanking from "@/features/ranking/SearchRanking";
+import { Search, Users } from "lucide-react";
 import type { Metadata } from "next";
-import { Suspense } from "react";
 import Link from "next/link";
-import { Users, Search } from "lucide-react";
-import { Content } from "@/components/content/Content";
+import { Suspense } from "react";
 
 export const metadata: Metadata = {
   title: "そっくりAV女優検索 - 妄想が、確信に変わる。",

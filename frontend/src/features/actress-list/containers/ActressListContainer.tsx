@@ -17,13 +17,13 @@ interface ActressListContainerProps {
  * 女優一覧コンテナコンポーネント（Server Component）
  * データ取得とビジネスロジックを担当
  */
-export default async function ActressListContainer({ 
-  searchParams = {} 
+export default async function ActressListContainer({
+  searchParams = {},
 }: ActressListContainerProps) {
   // パラメータを解析
-  const currentPage = parseInt(searchParams.page || '1', 10);
-  const searchQuery = searchParams.search || '';
-  const sortBy = (searchParams.sort_by as 'name' | 'person_id' | 'created_at') || 'name';
+  const currentPage = Number.parseInt(searchParams.page || "1", 10);
+  const searchQuery = searchParams.search || "";
+  const sortBy = (searchParams.sort_by as "name" | "person_id" | "created_at") || "name";
   const itemsPerPage = 20;
   const offset = (currentPage - 1) * itemsPerPage;
 
@@ -31,18 +31,18 @@ export default async function ActressListContainer({
   const apiParams: ActressListParams = {
     limit: itemsPerPage,
     offset,
-    sort_by: sortBy
+    sort_by: sortBy,
   };
 
   if (searchQuery) {
     apiParams.search = searchQuery;
   }
 
-  logger.info("女優一覧データを取得開始", { 
-    currentPage, 
-    searchQuery, 
-    sortBy, 
-    apiParams 
+  logger.info("女優一覧データを取得開始", {
+    currentPage,
+    searchQuery,
+    sortBy,
+    apiParams,
   });
 
   // データを取得
@@ -67,7 +67,7 @@ export default async function ActressListContainer({
   logger.info("女優一覧データ取得成功", {
     count: response.persons.length,
     totalCount: response.total_count,
-    hasMore: response.has_more
+    hasMore: response.has_more,
   });
 
   return (

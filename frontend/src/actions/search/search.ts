@@ -24,7 +24,7 @@ export async function searchImage(formData: FormData): Promise<SearchSuccessResp
     const searchFormData = new FormData();
     searchFormData.append("image", image);
 
-    const response = await fetch(`${API_BASE_URL}/api/search`, {
+    const response = await fetch(`${API_BASE_URL}/api/search?top_k=5`, {
       method: "POST",
       body: searchFormData,
     });

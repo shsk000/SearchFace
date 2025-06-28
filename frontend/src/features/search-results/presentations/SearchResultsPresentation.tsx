@@ -41,30 +41,92 @@ export function SearchResultsPresentation({
       {/* ヘッダー */}
       <SearchResultsHeader sessionData={sessionData} />
 
-      {/* 検索結果エリア */}
-      <div className="mb-12">
-        <h2 className="text-xl font-semibold mb-6 text-center">類似度の高い人物</h2>
+      {/* 検索結果エリア - コンパクト */}
+      <div className="mb-6">
+        <h2 className="text-lg font-semibold mb-4 text-center">類似度の高い人物</h2>
 
-        {/* レスポンシブレイアウト */}
-        <div className="flex flex-col lg:flex-row items-center justify-center gap-8 lg:gap-12">
-          {/* 2位（存在する場合） */}
-          {formattedResults[1] && (
-            <div className="order-2 lg:order-1">
-              <PersonCard person={formattedResults[1]} isWinner={false} className="w-64 lg:w-72" />
+        {/* レスポンシブレイアウト - 3件データとの後方互換性を保持 */}
+        <div className="max-w-6xl mx-auto">
+          {/* 大画面: 1行神殿風レイアウト (800px以上) */}
+          <div className="hidden min-[800px]:flex items-end justify-center gap-4">
+            {/* 4位 (低) */}
+            {formattedResults[3] && (
+              <div className="flex flex-col items-center">
+                <PersonCard person={formattedResults[3]} isWinner={false} className="w-28" />
+              </div>
+            )}
+
+            {/* 2位 (中) */}
+            {formattedResults[1] && (
+              <div className="flex flex-col items-center mb-8">
+                <PersonCard person={formattedResults[1]} isWinner={false} className="w-32" />
+              </div>
+            )}
+
+            {/* 1位 (最高・ゴールド) */}
+            <div className="flex flex-col items-center mb-8">
+              <PersonCard person={formattedResults[0]} isWinner={true} className="w-48" />
             </div>
-          )}
 
-          {/* 1位（中央・大きめ） */}
-          <div className="order-1 lg:order-2">
-            <PersonCard person={formattedResults[0]} isWinner={true} className="w-80 lg:w-96" />
+            {/* 3位 (中) */}
+            {formattedResults[2] && (
+              <div className="flex flex-col items-center mb-8">
+                <PersonCard person={formattedResults[2]} isWinner={false} className="w-32" />
+              </div>
+            )}
+
+            {/* 5位 (低) */}
+            {formattedResults[4] && (
+              <div className="flex flex-col items-center">
+                <PersonCard person={formattedResults[4]} isWinner={false} className="w-28" />
+              </div>
+            )}
           </div>
 
-          {/* 3位（存在する場合） */}
-          {formattedResults[2] && (
-            <div className="order-3 lg:order-3">
-              <PersonCard person={formattedResults[2]} isWinner={false} className="w-64 lg:w-72" />
+          {/* 中画面: コンパクト神殿風レイアウト (600px-799px) */}
+          <div className="hidden min-[600px]:flex min-[800px]:hidden items-end justify-center gap-2">
+            {/* 4位 (低) */}
+            {formattedResults[3] && (
+              <div className="flex flex-col items-center">
+                <PersonCard person={formattedResults[3]} isWinner={false} className="w-24" />
+              </div>
+            )}
+
+            {/* 2位 (中) */}
+            {formattedResults[1] && (
+              <div className="flex flex-col items-center mb-6">
+                <PersonCard person={formattedResults[1]} isWinner={false} className="w-28" />
+              </div>
+            )}
+
+            {/* 1位 (最高・ゴールド) */}
+            <div className="flex flex-col items-center mb-12">
+              <PersonCard person={formattedResults[0]} isWinner={true} className="w-36" />
             </div>
-          )}
+
+            {/* 3位 (中) */}
+            {formattedResults[2] && (
+              <div className="flex flex-col items-center mb-6">
+                <PersonCard person={formattedResults[2]} isWinner={false} className="w-28" />
+              </div>
+            )}
+
+            {/* 5位 (低) */}
+            {formattedResults[4] && (
+              <div className="flex flex-col items-center">
+                <PersonCard person={formattedResults[4]} isWinner={false} className="w-24" />
+              </div>
+            )}
+          </div>
+
+          {/* 小画面: 横並びレイアウト (600px未満) */}
+          <div className="min-[600px]:hidden flex flex-col items-center gap-4 px-4">
+            {formattedResults.slice(0, 5).map((person, index) => (
+              <div key={person.id} className="w-full max-w-md">
+                <PersonCard person={person} isWinner={index === 0} isCompact={true} className="w-full" />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </>

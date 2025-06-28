@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { Search, SortAsc } from "lucide-react";
 // Input コンポーネントが存在しないため、HTML input タグを使用
 import { Button } from "@/components/ui/button";
+import { Search, SortAsc } from "lucide-react";
+import { useState } from "react";
+import type { ActressListPresentationProps } from "../types";
 // Select コンポーネントが存在しないため、HTML select タグを使用
 import { ActressCard } from "./ActressCard";
-import type { ActressListPresentationProps } from "../types";
 
 /**
  * 女優一覧表示コンポーネント（Presentational Component）
@@ -20,7 +20,7 @@ export function ActressListPresentation({
   searchQuery,
   sortBy,
   isLoading,
-  error
+  error,
 }: ActressListPresentationProps) {
   const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery);
 
@@ -33,16 +33,16 @@ export function ActressListPresentation({
   const handleSortChange = (newSortBy: string) => {
     // 実際のソート処理は Container コンポーネントで実装
     const params = new URLSearchParams();
-    if (localSearchQuery) params.append('search', localSearchQuery);
-    params.append('sort_by', newSortBy);
+    if (localSearchQuery) params.append("search", localSearchQuery);
+    params.append("sort_by", newSortBy);
     window.location.href = `/actresses?${params.toString()}`;
   };
 
   const handlePageChange = (page: number) => {
     const params = new URLSearchParams();
-    if (localSearchQuery) params.append('search', localSearchQuery);
-    params.append('sort_by', sortBy);
-    params.append('page', page.toString());
+    if (localSearchQuery) params.append("search", localSearchQuery);
+    params.append("sort_by", sortBy);
+    params.append("page", page.toString());
     window.location.href = `/actresses?${params.toString()}`;
   };
 
@@ -65,7 +65,9 @@ export function ActressListPresentation({
       <div className="text-center">
         <h1 className="text-3xl font-bold text-white mb-2">女優一覧</h1>
         <p className="text-gray-400">
-          {totalCount > 0 ? `${totalCount}名の女優が登録されています` : '女優が見つかりませんでした'}
+          {totalCount > 0
+            ? `${totalCount}名の女優が登録されています`
+            : "女優が見つかりませんでした"}
         </p>
       </div>
 
@@ -80,15 +82,11 @@ export function ActressListPresentation({
               placeholder="女優名で検索..."
               value={localSearchQuery}
               onChange={(e) => setLocalSearchQuery(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
               className="w-full pl-10 pr-4 py-2 bg-zinc-800 border border-zinc-700 text-white rounded-md focus:outline-none focus:border-zinc-600"
             />
           </div>
-          <Button 
-            onClick={handleSearch}
-            disabled={isLoading}
-            variant="secondary"
-          >
+          <Button onClick={handleSearch} disabled={isLoading} variant="secondary">
             検索
           </Button>
         </div>
@@ -96,8 +94,8 @@ export function ActressListPresentation({
         {/* ソート選択 */}
         <div className="flex items-center gap-2">
           <SortAsc className="w-4 h-4 text-gray-400" />
-          <select 
-            value={sortBy} 
+          <select
+            value={sortBy}
             onChange={(e) => handleSortChange(e.target.value)}
             className="px-3 py-2 bg-zinc-800 border border-zinc-700 text-white rounded-md focus:outline-none focus:border-zinc-600"
           >
@@ -140,7 +138,7 @@ export function ActressListPresentation({
               >
                 前へ
               </Button>
-              
+
               {/* ページ番号表示（簡易版） */}
               <div className="flex items-center gap-2">
                 {currentPage > 2 && (
@@ -155,7 +153,7 @@ export function ActressListPresentation({
                     {currentPage > 3 && <span className="text-gray-400">...</span>}
                   </>
                 )}
-                
+
                 {currentPage > 1 && (
                   <Button
                     variant="ghost"
@@ -165,14 +163,11 @@ export function ActressListPresentation({
                     {currentPage - 1}
                   </Button>
                 )}
-                
-                <Button
-                  variant="default"
-                  className="bg-blue-600 text-white"
-                >
+
+                <Button variant="default" className="bg-blue-600 text-white">
                   {currentPage}
                 </Button>
-                
+
                 {currentPage < totalPages && (
                   <Button
                     variant="ghost"
@@ -182,7 +177,7 @@ export function ActressListPresentation({
                     {currentPage + 1}
                   </Button>
                 )}
-                
+
                 {currentPage < totalPages - 1 && (
                   <>
                     {currentPage < totalPages - 2 && <span className="text-gray-400">...</span>}
@@ -214,14 +209,16 @@ export function ActressListPresentation({
       {!isLoading && actresses.length === 0 && !error && (
         <div className="text-center py-12">
           <div className="text-gray-400 mb-4">
-            {searchQuery ? '検索条件に一致する女優が見つかりませんでした' : '女優が登録されていません'}
+            {searchQuery
+              ? "検索条件に一致する女優が見つかりませんでした"
+              : "女優が登録されていません"}
           </div>
           {searchQuery && (
-            <Button 
-              variant="secondary" 
+            <Button
+              variant="secondary"
               onClick={() => {
-                setLocalSearchQuery('');
-                window.location.href = '/actresses';
+                setLocalSearchQuery("");
+                window.location.href = "/actresses";
               }}
             >
               検索をクリア
