@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import Link from "next/link";
 import { Users, Search } from "lucide-react";
+import { Content } from "@/components/content/Content";
 
 export const metadata: Metadata = {
   title: "そっくりAV女優検索 - 妄想が、確信に変わる。",
@@ -53,7 +54,7 @@ export const metadata: Metadata = {
 
 export default function Home() {
   return (
-    <div className="relative z-10 max-w-4xl w-full mx-auto text-center flex flex-col justify-center items-center">
+    <Content className="relative z-10 max-w-4xl w-full mx-auto text-center flex flex-col justify-center items-center">
       {/* ナビゲーションメニュー */}
       <nav className="w-full mb-8">
         <div className="flex justify-center gap-4">
@@ -99,6 +100,6 @@ export default function Home() {
       </div>
 
       <Footer />
-    </div>
+    </Content>
   );
 }

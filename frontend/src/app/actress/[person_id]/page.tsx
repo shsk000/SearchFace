@@ -73,10 +73,7 @@ export default async function ActressDetailPage({ params }: ActressDetailPagePro
   }
 
   return (
-    <Content
-      as="main"
-      className="min-h-screen bg-gradient-to-br from-zinc-900 via-black to-zinc-900"
-    >
+    <Content className="min-h-screen bg-gradient-to-br from-zinc-900 via-black to-zinc-900">
       <Suspense fallback={<ActressDetailLoading />}>
         <ActressDetailContent personId={personId} />
       </Suspense>
