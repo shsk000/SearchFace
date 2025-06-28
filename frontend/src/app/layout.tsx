@@ -62,7 +62,12 @@ export default async function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <Header />
         <GoogleAnalytics />
-        <StructuredData />
+        <StructuredData
+          title="そっくりAV - AI顔画像検索システム"
+          description="画像をアップするだけで、そっくりなAV女優が見つかる。最新のAI技術を使用した高精度な顔画像検索システム。"
+          url="https://www.sokkuri-av.lol"
+          image="https://www.sokkuri-av.lol/og-image.jpg"
+        />
         <AgeVerificationProvider isAgeVerified={ageVerified}>
           <main className="relative min-h-screen text-white flex items-center justify-center p-4 overflow-hidden pt-14 bg-gradient-to-br from-[#111] via-[#1a1a1a] to-[#ee2737]/40">
             {children}
