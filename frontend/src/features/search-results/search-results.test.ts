@@ -63,8 +63,9 @@ describe("SearchResults Feature Integration Tests", () => {
 
     // UIが正しく表示されることを確認
     expect(screen.getByText("類似度の高い人物")).toBeInTheDocument();
-    expect(screen.getByText("Test Person 1")).toBeInTheDocument();
-    expect(screen.getByText("95%")).toBeInTheDocument();
+    // レスポンシブレイアウトで大画面・中画面・小画面の3つで表示される可能性がある
+    expect(screen.getAllByText("Test Person 1").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("95%").length).toBeGreaterThanOrEqual(1);
 
     // 関連商品エリアが表示されることを確認（条件によって表示される）
     // データが存在する場合のみ表示されるため、条件をチェック
@@ -197,8 +198,9 @@ describe("SearchResults Feature Integration Tests", () => {
 
     // カスタムデータが正しく表示されることを確認
     expect(screen.getByText("類似度の高い人物")).toBeInTheDocument();
-    expect(screen.getByText("Custom Person")).toBeInTheDocument();
-    expect(screen.getByText("88%")).toBeInTheDocument();
+    // レスポンシブレイアウトで大画面・中画面・小画面の3つで表示される可能性がある
+    expect(screen.getAllByText("Custom Person").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("88%").length).toBeGreaterThanOrEqual(1);
 
     // 関連商品エリアが表示されることを確認（条件によって表示される）
     const productsContainer = screen.queryByTestId("products-container");
@@ -247,7 +249,8 @@ describe("SearchResults Feature Integration Tests", () => {
 
     // PresentationコンポーネントのUIが正しく表示されることを確認
     expect(screen.getByText("類似度の高い人物")).toBeInTheDocument();
-    expect(screen.getByText("Test Person 1")).toBeInTheDocument();
-    expect(screen.getByText("95%")).toBeInTheDocument();
+    // レスポンシブレイアウトで大画面・中画面・小画面の3つで表示される可能性がある
+    expect(screen.getAllByText("Test Person 1").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("95%").length).toBeGreaterThanOrEqual(1);
   });
 });
