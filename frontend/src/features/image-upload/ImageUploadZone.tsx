@@ -1,5 +1,24 @@
 "use client";
 
+/**
+ * 画像アップロードとクリップボードペースト機能を提供するコンポーネント
+ * 
+ * 対応機能：
+ * - ファイル選択（クリック）
+ * - ドラッグ&ドロップ
+ * - クリップボードペースト（Ctrl+V / Cmd+V）
+ * 
+ * ブラウザ互換性：
+ * - Chrome 76+ （Clipboard API サポート）
+ * - Firefox 90+ （Clipboard API サポート）
+ * - Safari 13.1+ （Clipboard API サポート）
+ * - Edge 79+ （Clipboard API サポート）
+ * 
+ * 注意：
+ * - クリップボード機能はHTTPS環境でのみ動作します
+ * - ユーザーの明示的な操作（クリックやキーボード操作）が必要です
+ */
+
 import { getErrorMessage } from "@/actions/search/error";
 import { searchImage } from "@/actions/search/search";
 import { isErrorCode } from "@/actions/search/type";
@@ -8,7 +27,7 @@ import { logger } from "@/lib/logger";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import type React from "react";
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 
 interface ImageUploadZoneProps {
@@ -20,7 +39,100 @@ export function ImageUploadZone({ onSearchComplete }: ImageUploadZoneProps) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [isPasteSupported, setIsPasteSupported] = useState(false);
   const router = useRouter();
+
+  // クリップボードペースト機能のサポート確認
+  useEffect(() => {
+    const checkClipboardSupport = () => {
+      const isSupported = 
+        typeof navigator !== 'undefined' && 
+        'clipboard' in navigator && 
+        'read' in navigator.clipboard;
+      setIsPasteSupported(isSupported);
+    };
+    
+    checkClipboardSupport();
+  }, []);
+
+  // クリップボードから画像を読み取る関数
+  const handleClipboardPaste = useCallback(async () => {
+    if (!isPasteSupported) {
+      toast.error("このブラウザではクリップボードペーストがサポートされていません", {
+        closeButton: true,
+      });
+      return;
+    }
+
+    try {
+      const clipboardItems = await navigator.clipboard.read();
+      
+      for (const item of clipboardItems) {
+        // 画像タイプを探す
+        const imageType = item.types.find(type => type.startsWith('image/'));
+        
+        if (imageType) {
+          const blob = await item.getType(imageType);
+          // BlobをFileオブジェクトに変換
+          const file = new File([blob], `clipboard-image.${imageType.split('/')[1]}`, {
+            type: imageType,
+            lastModified: Date.now(),
+          });
+          
+          logger.info("クリップボードから画像を取得", { 
+            fileName: file.name, 
+            fileSize: file.size, 
+            fileType: file.type 
+          });
+          
+          validateAndSetFile(file);
+          toast.success("クリップボードから画像を読み込みました！");
+          return;
+        }
+      }
+      
+      // 画像が見つからない場合
+      toast.error("クリップボードに画像が見つかりません", {
+        closeButton: true,
+      });
+      
+    } catch (error) {
+      logger.error("クリップボード読み取りエラー", { error });
+      
+      // ユーザーが許可を拒否した場合など
+      if (error instanceof Error && error.name === 'NotAllowedError') {
+        toast.error("クリップボードへのアクセスが拒否されました", {
+          closeButton: true,
+        });
+      } else {
+        toast.error("クリップボードから画像を読み取れませんでした", {
+          closeButton: true,
+        });
+      }
+    }
+  }, [isPasteSupported]);
+
+  // キーボードショートカット (Ctrl+V / Cmd+V) の処理
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Ctrl+V (Windows/Linux) または Cmd+V (Mac) の検出
+      if ((event.ctrlKey || event.metaKey) && event.key === 'v') {
+        // フォーカスがinput要素にある場合はスキップ
+        const activeElement = document.activeElement;
+        if (activeElement?.tagName === 'INPUT' || activeElement?.tagName === 'TEXTAREA') {
+          return;
+        }
+        
+        event.preventDefault();
+        if (!isSearching) {
+          handleClipboardPaste();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isSearching, handleClipboardPaste]);
 
   const validateAndSetFile = (file: File) => {
     // ファイルサイズチェック（500KB = 500 * 1024 bytes）
@@ -165,10 +277,20 @@ export function ImageUploadZone({ onSearchComplete }: ImageUploadZoneProps) {
               <div className="text-lg text-white font-semibold mb-2">
                 {isDragOver ? "ここにドロップ" : "画像を選択"}
               </div>
-              <div className="text-xs text-gray-400">
-                {isDragOver
-                  ? "画像ファイルをここにドロップしてください"
-                  : "クリックまたはドラッグ&ドロップ（500KB以下）"}
+              <div className="text-xs text-gray-400 text-center">
+                {isDragOver ? (
+                  "画像ファイルをここにドロップしてください"
+                ) : (
+                  <>
+                    クリックまたはドラッグ&ドロップ（500KB以下）
+                    {isPasteSupported && (
+                      <>
+                        <br />
+                        <span className="text-[#ee2737]">Ctrl+V</span> でクリップボードからペースト
+                      </>
+                    )}
+                  </>
+                )}
               </div>
             </>
           )}
@@ -185,6 +307,21 @@ export function ImageUploadZone({ onSearchComplete }: ImageUploadZoneProps) {
           </div>
         )}
       </button>
+      
+      {/* クリップボードペースト用ボタン */}
+      {isPasteSupported && !selectedImage && !isSearching && (
+        <div className="flex justify-center">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleClipboardPaste}
+            className="bg-transparent border-[#ee2737] text-[#ee2737] hover:bg-[#ee2737] hover:text-white transition-all duration-200"
+          >
+            📋 クリップボードから貼り付け
+          </Button>
+        </div>
+      )}
+      
       <Button
         type="submit"
         className="w-full h-14 text-lg font-bold bg-[#ee2737] hover:bg-[#d81e2b] shadow-lg transition-all duration-200 rounded-xl"
