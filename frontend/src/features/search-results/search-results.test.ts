@@ -21,8 +21,11 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/features/products/containers/ProductsContainer", () => {
   return {
     default: ({ personId, limit }: { personId: number; limit: number }) => {
-      return React.createElement('div', { 'data-testid': 'products-container' }, 
-        `Products for person ${personId} (limit: ${limit})`);
+      return React.createElement(
+        "div",
+        { "data-testid": "products-container" },
+        `Products for person ${personId} (limit: ${limit})`,
+      );
     },
   };
 });
@@ -62,7 +65,7 @@ describe("SearchResults Feature Integration Tests", () => {
     expect(screen.getByText("類似度の高い人物")).toBeInTheDocument();
     expect(screen.getByText("Test Person 1")).toBeInTheDocument();
     expect(screen.getByText("95%")).toBeInTheDocument();
-    
+
     // 関連商品エリアが表示されることを確認（条件によって表示される）
     // データが存在する場合のみ表示されるため、条件をチェック
     const productsContainer = screen.queryByTestId("products-container");
@@ -75,11 +78,8 @@ describe("SearchResults Feature Integration Tests", () => {
     // MSWでAPIエラーをシミュレート
     server.use(
       http.get("http://backend:10000/api/search/:sessionId", () => {
-        return HttpResponse.json(
-          { error: "Not Found" },
-          { status: 404 }
-        );
-      })
+        return HttpResponse.json({ error: "Not Found" }, { status: 404 });
+      }),
     );
 
     // API関数でエラーハンドリングテスト
@@ -101,7 +101,7 @@ describe("SearchResults Feature Integration Tests", () => {
     server.use(
       http.get("http://backend:10000/api/search/:sessionId", () => {
         return HttpResponse.error();
-      })
+      }),
     );
 
     // API関数でネットワークエラーテスト
@@ -128,7 +128,7 @@ describe("SearchResults Feature Integration Tests", () => {
           search_timestamp: "2024-01-01T00:00:00Z",
           results: [],
         });
-      })
+      }),
     );
 
     // API関数で空データテスト
@@ -170,7 +170,7 @@ describe("SearchResults Feature Integration Tests", () => {
             },
           ],
         });
-      })
+      }),
     );
 
     // API関数を環境変数付きで呼び出し
@@ -199,7 +199,7 @@ describe("SearchResults Feature Integration Tests", () => {
     expect(screen.getByText("類似度の高い人物")).toBeInTheDocument();
     expect(screen.getByText("Custom Person")).toBeInTheDocument();
     expect(screen.getByText("88%")).toBeInTheDocument();
-    
+
     // 関連商品エリアが表示されることを確認（条件によって表示される）
     const productsContainer = screen.queryByTestId("products-container");
     if (productsContainer) {
@@ -242,7 +242,7 @@ describe("SearchResults Feature Integration Tests", () => {
         sessionData: mockSessionData,
         formattedResults: mockFormattedResults,
         error: null,
-      })
+      }),
     );
 
     // PresentationコンポーネントのUIが正しく表示されることを確認

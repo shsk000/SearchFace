@@ -1,8 +1,8 @@
-import { Suspense } from "react";
-import Link from "next/link";
-import { Users, Home } from "lucide-react";
-import ActressListContainer from "@/features/actress-list/containers/ActressListContainer";
 import { Content } from "@/components/content/Content";
+import ActressListContainer from "@/features/actress-list/containers/ActressListContainer";
+import { Home, Users } from "lucide-react";
+import Link from "next/link";
+import { Suspense } from "react";
 
 interface PageProps {
   searchParams?: Promise<{

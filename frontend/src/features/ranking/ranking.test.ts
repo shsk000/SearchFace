@@ -2,8 +2,8 @@ import { render, screen } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { server } from "../../test/mocks/server";
-import { getRankingData } from "./api";
 import SearchRanking from "./SearchRanking";
+import { getRankingData } from "./api";
 
 // Next.js のモック設定
 vi.mock("next/navigation", () => ({
@@ -64,11 +64,8 @@ describe("Ranking Feature Integration Tests", () => {
     // MSWでAPIエラーをシミュレート
     server.use(
       http.get("http://backend:10000/api/ranking", () => {
-        return HttpResponse.json(
-          { error: "Internal Server Error" },
-          { status: 500 }
-        );
-      })
+        return HttpResponse.json({ error: "Internal Server Error" }, { status: 500 });
+      }),
     );
 
     // API関数でエラーハンドリングテスト
@@ -90,7 +87,7 @@ describe("Ranking Feature Integration Tests", () => {
     server.use(
       http.get("http://backend:10000/api/ranking", () => {
         return HttpResponse.error();
-      })
+      }),
     );
 
     // API関数でネットワークエラーテスト
@@ -114,7 +111,7 @@ describe("Ranking Feature Integration Tests", () => {
           ranking: [],
           total_count: 0,
         });
-      })
+      }),
     );
 
     // API関数で空データテスト
@@ -154,7 +151,7 @@ describe("Ranking Feature Integration Tests", () => {
           ],
           total_count: 1,
         });
-      })
+      }),
     );
 
     // API関数を環境変数付きで呼び出し

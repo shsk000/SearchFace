@@ -38,7 +38,7 @@ class SearchDatabase:
 
     def record_search_results(self, search_results: List[Dict[str, Any]],
                             metadata: Optional[Dict] = None) -> str:
-        """検索結果を記録（1～3位まで）
+        """検索結果を記録（1～5位まで）
 
         Args:
             search_results: 検索結果のリスト（各要素は person_id, name, distance, image_path を持つ）
@@ -52,7 +52,7 @@ class SearchDatabase:
             search_session_id = str(uuid.uuid4())
 
             # 各順位の結果を記録
-            for rank, result in enumerate(search_results[:3], 1):  # 最大3位まで
+            for rank, result in enumerate(search_results[:5], 1):  # 最大5位まで
                 self.conn.execute("""
                     INSERT INTO search_history
                     (search_session_id, result_rank, person_id, distance, image_path, metadata)

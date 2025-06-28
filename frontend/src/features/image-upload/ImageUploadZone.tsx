@@ -120,7 +120,7 @@ export function ImageUploadZone({ onSearchComplete }: ImageUploadZoneProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="text-xl font-bold text-white mb-2 text-center drop-shadow-lg">
+      <div className="text-xl font-bold text-white mb-4 text-center drop-shadow-lg">
         画像をアップロードしてそっくりAV女優を検索！
       </div>
       <button

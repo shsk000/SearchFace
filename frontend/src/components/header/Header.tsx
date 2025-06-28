@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { Logo } from "@/components/logo/Logo";
-import { Users, Search } from "lucide-react";
+import { Search, Users } from "lucide-react";
+import Link from "next/link";
 
 /**
  * サイト共通ヘッダー

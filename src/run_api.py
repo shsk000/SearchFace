@@ -15,7 +15,7 @@ APIエンドポイント：
 - POST /api/search: 画像をアップロードして類似顔を検索
 
 レスポンス形式：
-- results: 検索結果のリスト（最大3件）
+- results: 検索結果のリスト（最大5件）
   - name: 人物名
   - similarity: 類似度（0-1の範囲）
   - image_path: 画像パス

@@ -26,13 +26,9 @@ export function ActressCard({ actress }: ActressCardProps) {
 
         {/* 女優情報 - 中央揃え */}
         <div className="text-center">
-          <h3 className="font-bold text-sm mb-1 text-white">
-            {actress.name}
-          </h3>
+          <h3 className="font-bold text-sm mb-1 text-white">{actress.name}</h3>
           {actress.dmm_actress_id && (
-            <div className="text-xs text-gray-400">
-              ID: {actress.dmm_actress_id}
-            </div>
+            <div className="text-xs text-gray-400">ID: {actress.dmm_actress_id}</div>
           )}
         </div>
       </div>

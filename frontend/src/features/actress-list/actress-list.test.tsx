@@ -1,7 +1,7 @@
-import { render, screen } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import { server } from "@/test/mocks/server";
+import { render, screen } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Next.js のモック設定
 const mockPush = vi.fn();
@@ -188,11 +188,8 @@ describe("ActressList Feature Integration Tests", () => {
     // MSWでAPIエラーをシミュレート
     server.use(
       http.get("http://backend:10000/api/persons", () => {
-        return HttpResponse.json(
-          { error: "Internal Server Error" },
-          { status: 500 }
-        );
-      })
+        return HttpResponse.json({ error: "Internal Server Error" }, { status: 500 });
+      }),
     );
 
     // API関数でエラーハンドリングテスト
@@ -237,7 +234,7 @@ describe("ActressList Feature Integration Tests", () => {
           total_count: 0,
           has_more: false,
         });
-      })
+      }),
     );
 
     // API関数で空データテスト
@@ -278,7 +275,7 @@ describe("ActressList Feature Integration Tests", () => {
     server.use(
       http.get("http://backend:10000/api/persons", () => {
         return HttpResponse.error();
-      })
+      }),
     );
 
     // API関数でネットワークエラーテスト

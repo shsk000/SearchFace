@@ -112,11 +112,11 @@ class TestSearchDatabase:
             assert mock_search_database.conn.sync.call_count >= 1  # Called in __init__ and record_search_results
 
     @pytest.mark.unit
-    def test_record_search_results_limit_three(self, mock_search_database):
-        """Test that only top 3 results are recorded"""
+    def test_record_search_results_limit_five(self, mock_search_database):
+        """Test that only top 5 results are recorded"""
         search_results = [
             {'person_id': i, 'name': f'Person {i}', 'distance': 0.1 * i, 'image_path': f'/path/{i}.jpg'}
-            for i in range(1, 6)  # 5 results
+            for i in range(1, 8)  # 7 results
         ]
         
         with patch('src.database.search_database.uuid.uuid4') as mock_uuid:
@@ -126,8 +126,8 @@ class TestSearchDatabase:
             session_id = mock_search_database.record_search_results(search_results)
             
             assert session_id == 'limited-session-123'
-            # Should only make 3 insert calls (for top 3 results)
-            assert mock_search_database.conn.execute.call_count == 3
+            # Should only make 5 insert calls (for top 5 results)
+            assert mock_search_database.conn.execute.call_count == 5
 
     @pytest.mark.unit
     def test_record_search_results_with_metadata(self, mock_search_database):
