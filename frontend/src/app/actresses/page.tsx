@@ -18,7 +18,7 @@ interface PageProps {
 export default async function ActressListPage({ searchParams }: PageProps) {
   const resolvedSearchParams = await searchParams;
   return (
-    <Content className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900">
+    <Content>
       <div className="container mx-auto px-4 py-8">
         {/* ナビゲーションメニュー */}
         <nav className="w-full mb-8">
@@ -55,6 +55,6 @@ export default async function ActressListPage({ searchParams }: PageProps) {
 }
 
 export const metadata = {
-  title: "女優一覧 | SearchFace",
+  title: "女優一覧",
   description: "登録されている女優の一覧ページです。名前で検索や並び替えが可能です。",
 };

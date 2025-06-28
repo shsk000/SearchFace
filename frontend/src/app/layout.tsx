@@ -22,7 +22,36 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: {
     template: "%s | そっくりAV",
-    default: "そっくりAV - AI顔画像検索システム", // フォールバック用
+    default: "そっくりAV - AI顔画像検索システム",
+  },
+  description:
+    "画像をアップするだけで、そっくりなAV女優が見つかる。最新のAI技術を使用した高精度な顔画像検索システム。",
+  openGraph: {
+    title: "そっくりAV - AI顔画像検索システム",
+    description:
+      "画像をアップするだけで、そっくりなAV女優が見つかる。最新のAI技術を使用した高精度な顔画像検索システム。",
+    url: "https://www.sokkuri-av.lol",
+    siteName: "そっくりAV",
+    images: [
+      {
+        url: "https://www.sokkuri-av.lol/og-image.jpg",
+        width: 1200,
+        height: 630,
+        alt: "そっくりAV - AI顔画像検索システム",
+      },
+    ],
+    type: "website",
+    locale: "ja_JP",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "そっくりAV - AI顔画像検索システム",
+    description:
+      "画像をアップするだけで、そっくりなAV女優が見つかる。最新のAI技術を使用した高精度な顔画像検索システム。",
+    images: ["https://www.sokkuri-av.lol/og-image.jpg"],
+  },
+  alternates: {
+    canonical: "https://www.sokkuri-av.lol",
   },
   authors: [{ name: "そっくりAV" }],
   creator: "そっくりAV",
@@ -62,7 +91,12 @@ export default async function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <Header />
         <GoogleAnalytics />
-        <StructuredData />
+        <StructuredData
+          title="そっくりAV - AI顔画像検索システム"
+          description="画像をアップするだけで、そっくりなAV女優が見つかる。最新のAI技術を使用した高精度な顔画像検索システム。"
+          url="https://www.sokkuri-av.lol"
+          image="https://www.sokkuri-av.lol/og-image.jpg"
+        />
         <AgeVerificationProvider isAgeVerified={ageVerified}>
           <main className="relative min-h-screen text-white flex items-center justify-center p-4 overflow-hidden pt-14 bg-gradient-to-br from-[#111] via-[#1a1a1a] to-[#ee2737]/40">
             {children}
