@@ -7,6 +7,7 @@ import { AgeVerificationProvider } from "@/features/age-verification/age-verific
 import GoogleAnalytics from "@/features/analytics/google-analytics";
 import { BackgroundImages } from "@/features/background/BackgroundImages";
 import { isAgeVerified } from "@/lib/age-verification";
+import { Header } from "@/components/header/Header";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -59,9 +60,14 @@ export default async function RootLayout({
   return (
     <html lang="ja">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        <Header />
         <GoogleAnalytics />
         <StructuredData />
-        <AgeVerificationProvider isAgeVerified={ageVerified}>{children}</AgeVerificationProvider>
+        <AgeVerificationProvider isAgeVerified={ageVerified}>
+          <main className="relative min-h-screen bg-[#111] text-white flex items-center justify-center p-4 overflow-hidden pt-14">
+            {children}
+          </main>
+        </AgeVerificationProvider>
         <Toaster />
         <BackgroundImages />
       </body>

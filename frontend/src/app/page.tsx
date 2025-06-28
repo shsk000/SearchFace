@@ -53,16 +53,22 @@ export const metadata: Metadata = {
 
 export default function Home() {
   return (
-    <main className="relative min-h-screen bg-[#111] text-white flex items-center justify-center p-4 overflow-hidden">
+    <main className="relative min-h-screen bg-[#111] text-white flex items-center justify-center p-4 overflow-hidden pt-20">
       <div className="relative z-10 max-w-4xl w-full mx-auto text-center flex flex-col justify-center items-center">
         {/* ナビゲーションメニュー */}
         <nav className="w-full mb-8">
           <div className="flex justify-center gap-4">
-            <Link href="/actresses" className="flex items-center gap-2 px-4 py-2 bg-zinc-800/50 border border-zinc-700 rounded-lg hover:border-zinc-600 transition-all duration-300 hover:scale-105">
+            <Link
+              href="/actresses"
+              className="flex items-center gap-2 px-4 py-2 bg-zinc-800/50 border border-zinc-700 rounded-lg hover:border-zinc-600 transition-all duration-300 hover:scale-105"
+            >
               <Users className="w-4 h-4" />
               <span className="text-sm">女優一覧</span>
             </Link>
-            <Link href="/" className="flex items-center gap-2 px-4 py-2 bg-blue-600/50 border border-blue-500 rounded-lg">
+            <Link
+              href="/"
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600/50 border border-blue-500 rounded-lg"
+            >
               <Search className="w-4 h-4" />
               <span className="text-sm">顔検索</span>
             </Link>
