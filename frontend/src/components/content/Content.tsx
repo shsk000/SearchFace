@@ -47,7 +47,7 @@ export const Content = <T extends ElementType = "div">({
 
   return (
     <Component
-      className={cn("min-h-screen  text-white mt-4 overflow-hidden", className)}
+      className={cn("min-h-screen text-white mt-4 overflow-hidden w-full", className)}
       {...props}
     >
       <div className="relative z-10 max-w-7xl mx-auto backdrop-blur-sm bg-black/20 rounded-lg p-6">

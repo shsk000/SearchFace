@@ -15,7 +15,7 @@ async function ActressDetailContent({ personId }: { personId: number }) {
   logger.info("女優詳細ページ開始", { personId });
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
+    <>
       {/* 女優詳細情報 */}
       <ActressDetailContainer personId={personId} />
 
@@ -23,13 +23,13 @@ async function ActressDetailContent({ personId }: { personId: number }) {
       <div className="mt-8">
         <ProductsContainer personId={personId} limit={20} />
       </div>
-    </div>
+    </>
   );
 }
 
 function ActressDetailLoading() {
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
+    <>
       <div className="bg-zinc-800/90 border border-zinc-700 rounded-lg p-8 mb-8">
         <div className="grid md:grid-cols-2 gap-8 items-center">
           {/* 画像スケルトン */}
@@ -59,7 +59,7 @@ function ActressDetailLoading() {
           </div>
         ))}
       </div>
-    </div>
+    </>
   );
 }
 
@@ -73,7 +73,7 @@ export default async function ActressDetailPage({ params }: ActressDetailPagePro
   }
 
   return (
-    <Content className="min-h-screen bg-gradient-to-br from-zinc-900 via-black to-zinc-900">
+    <Content className="">
       <Suspense fallback={<ActressDetailLoading />}>
         <ActressDetailContent personId={personId} />
       </Suspense>
