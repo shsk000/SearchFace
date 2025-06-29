@@ -33,11 +33,16 @@ export function PersonCard({ person, isWinner, className, isCompact = false }: P
                 ? "h-32 w-full bg-gradient-to-r from-yellow-400/30 to-amber-600/30 border-yellow-500/70"
                 : "h-32 w-full bg-zinc-800/90 border-zinc-700 hover:border-zinc-600"
               : isWinner
-              ? "h-80 bg-gradient-to-br from-yellow-400/20 to-amber-600/20 border-yellow-500/70 shadow-lg shadow-yellow-500/30"
-              : "h-64 bg-zinc-800/90 border-zinc-700 hover:border-zinc-600"
+                ? "h-80 bg-gradient-to-br from-yellow-400/20 to-amber-600/20 border-yellow-500/70 shadow-lg shadow-yellow-500/30"
+                : "h-64 bg-zinc-800/90 border-zinc-700 hover:border-zinc-600",
           )}
         >
-          <CardContent className={cn("p-3 h-full", isCompact ? "flex flex-row items-center gap-4" : "flex flex-col")}>
+          <CardContent
+            className={cn(
+              "p-3 h-full",
+              isCompact ? "flex flex-row items-center gap-4" : "flex flex-col",
+            )}
+          >
             {isCompact ? (
               // コンパクトモード: 横並びレイアウト
               <>
@@ -88,7 +93,10 @@ export function PersonCard({ person, isWinner, className, isCompact = false }: P
                       類似度:
                     </span>
                     <span
-                      className={cn("font-bold text-lg", isWinner ? "text-yellow-300" : "text-white")}
+                      className={cn(
+                        "font-bold text-lg",
+                        isWinner ? "text-yellow-300" : "text-white",
+                      )}
                     >
                       {person.similarity}%
                     </span>
@@ -152,7 +160,10 @@ export function PersonCard({ person, isWinner, className, isCompact = false }: P
                       類似度:
                     </span>
                     <span
-                      className={cn("font-bold text-xs", isWinner ? "text-yellow-300" : "text-white")}
+                      className={cn(
+                        "font-bold text-xs",
+                        isWinner ? "text-yellow-300" : "text-white",
+                      )}
                     >
                       {person.similarity}%
                     </span>

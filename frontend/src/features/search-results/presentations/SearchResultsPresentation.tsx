@@ -123,7 +123,12 @@ export function SearchResultsPresentation({
           <div className="min-[600px]:hidden flex flex-col items-center gap-4 px-4">
             {formattedResults.slice(0, 5).map((person, index) => (
               <div key={person.id} className="w-full max-w-md">
-                <PersonCard person={person} isWinner={index === 0} isCompact={true} className="w-full" />
+                <PersonCard
+                  person={person}
+                  isWinner={index === 0}
+                  isCompact={true}
+                  className="w-full"
+                />
               </div>
             ))}
           </div>
