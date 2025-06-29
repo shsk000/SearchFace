@@ -19,6 +19,9 @@ from src.database.search_database import SearchDatabase
 from src.database.ranking_database import RankingDatabase
 from src.database.db_manager import is_sync_complete
 
+search_debug_logger = logging.getLogger("src.api.routes.search")
+search_debug_logger.setLevel(logging.DEBUG)  # 本番でもDEBUG出力
+
 router = APIRouter(tags=["search"])
 logger = logging.getLogger(__name__)
 
@@ -83,7 +86,7 @@ async def search_face(
         search_start = time.time()
         results = db.search_similar_faces(face_encoding, top_k=top_k)
         search_time = time.time() - search_start
-        logger.debug(f"類似顔検索時間: {search_time:.4f}秒")
+        search_debug_logger.debug(f"類似顔検索時間: {search_time:.4f}秒")
 
         if not results:
             raise ImageValidationException(ErrorCode.NO_FACE_DETECTED)
@@ -126,7 +129,7 @@ async def search_face(
                     }
                 )
                 record_search_time = time.time() - record_search_start
-                logger.debug(f"検索履歴記録時間: {record_search_time:.4f}秒")
+                search_debug_logger.debug(f"検索履歴記録時間: {record_search_time:.4f}秒")
 
                 # 1位結果をランキングに反映
                 ranking_start = time.time()
@@ -134,7 +137,7 @@ async def search_face(
                     winner = results[0]
                     ranking_db.update_ranking(person_id=winner['person_id'])
                     ranking_time = time.time() - ranking_start
-                    logger.debug(f"ランキング更新時間: {ranking_time:.4f}秒")
+                    search_debug_logger.debug(f"ランキング更新時間: {ranking_time:.4f}秒")
                     logger.info(f"検索結果記録完了: セッション={session_id}, 1位={winner['name']}")
                 else:
                     logger.warning("セッションIDの取得に失敗したため、ランキング更新をスキップします。")
@@ -143,9 +146,9 @@ async def search_face(
                 logger.error(f"検索結果の記録に失敗（検索は成功）: {str(db_error)}")
             finally:
                 total_record_time = time.time() - record_start
-                logger.debug(f"検索結果記録処理総時間: {total_record_time:.4f}秒")
+                search_debug_logger.debug(f"検索結果記録処理総時間: {total_record_time:.4f}秒")
 
-        logger.debug(f"results: {search_results}")
+        search_debug_logger.debug(f"results: {search_results}")
 
         # レスポンス生成
         response_start = time.time()
@@ -155,7 +158,7 @@ async def search_face(
             search_session_id=session_id or ""
         )
         response_time = time.time() - response_start
-        logger.debug(f"レスポンス生成時間: {response_time:.4f}秒")
+        search_debug_logger.debug(f"レスポンス生成時間: {response_time:.4f}秒")
 
         return response
 
