@@ -24,7 +24,11 @@ export async function getActressList(
     logger.info("女優一覧データを取得中", { url, params });
 
     const response = await fetch(url, {
-      cache: "no-store",
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      next: { revalidate: 86400 }, // 1日（24時間）キャッシュ
     });
 
     if (!response.ok) {
