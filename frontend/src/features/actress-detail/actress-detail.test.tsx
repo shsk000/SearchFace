@@ -56,6 +56,22 @@ const mockActressWithZeroSearches: ActressDetail = {
   search_count: 0,
 };
 
+const mockActressWithDmmUrl: ActressDetail = {
+  person_id: 5,
+  name: "FANZA URL付き女優",
+  image_path: "https://example.com/actress.jpg",
+  search_count: 25,
+  dmm_list_url_digital: "https://al.dmm.co.jp/?lurl=https%3A%2F%2Fwww.dmm.co.jp%2F"
+};
+
+const mockActressWithoutDmmUrl: ActressDetail = {
+  person_id: 6,
+  name: "FANZA URLなし女優",
+  image_path: "https://example.com/actress.jpg",
+  search_count: 15,
+  dmm_list_url_digital: undefined
+};
+
 describe("Actress Detail Feature Integration", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -221,5 +237,77 @@ describe("Actress Detail Feature Integration", () => {
     const gradientDiv = container.querySelector(".bg-gradient-to-t.from-black\\/20");
     expect(gradientDiv).toBeInTheDocument();
     expect(gradientDiv).toHaveClass("to-transparent", "rounded-xl");
+  });
+
+  it("dmm_list_url_digitalがある場合FANZA商品一覧ボタンが表示される", async () => {
+    mockGetActressDetail.mockResolvedValue(mockActressWithDmmUrl);
+
+    render(await ActressDetailContainer({ personId: 5 }));
+
+    // FANZA商品一覧ボタンの表示確認
+    const fanzaButton = screen.getByRole("link", { name: /FANZA商品一覧へ/ });
+    expect(fanzaButton).toBeInTheDocument();
+    expect(fanzaButton).toHaveAttribute("href", "https://al.dmm.co.jp/?lurl=https%3A%2F%2Fwww.dmm.co.jp%2F");
+    expect(fanzaButton).toHaveAttribute("target", "_blank");
+    expect(fanzaButton).toHaveAttribute("rel", "noopener noreferrer");
+  });
+
+  it("dmm_list_url_digitalがない場合FANZA商品一覧ボタンが表示されない", async () => {
+    mockGetActressDetail.mockResolvedValue(mockActressWithoutDmmUrl);
+
+    render(await ActressDetailContainer({ personId: 6 }));
+
+    // FANZA商品一覧ボタンが表示されないことを確認
+    const fanzaButton = screen.queryByRole("link", { name: /FANZA商品一覧へ/ });
+    expect(fanzaButton).not.toBeInTheDocument();
+  });
+
+  it("FANZA商品一覧ボタンのアクセシビリティ確認", async () => {
+    mockGetActressDetail.mockResolvedValue(mockActressWithDmmUrl);
+
+    render(await ActressDetailContainer({ personId: 5 }));
+
+    // ボタンのアクセシビリティ属性確認
+    const fanzaButton = screen.getByRole("link", { name: /FANZA商品一覧へ/ });
+    expect(fanzaButton).toHaveClass("bg-pink-600", "hover:bg-pink-700");
+    
+    // アイコンの表示確認
+    const externalLinkIcon = fanzaButton.querySelector("svg");
+    expect(externalLinkIcon).toBeInTheDocument();
+  });
+
+  it("FANZA商品一覧ボタンのスタイリング確認", async () => {
+    mockGetActressDetail.mockResolvedValue(mockActressWithDmmUrl);
+
+    render(await ActressDetailContainer({ personId: 5 }));
+
+    // ボタンのスタイル確認
+    const fanzaButton = screen.getByRole("link", { name: /FANZA商品一覧へ/ });
+    expect(fanzaButton).toHaveClass(
+      "inline-flex",
+      "items-center",
+      "gap-2",
+      "bg-pink-600",
+      "text-white",
+      "px-4",
+      "py-2",
+      "rounded-lg",
+      "font-medium",
+      "transition-colors",
+      "hover:bg-pink-700"
+    );
+  });
+
+  it("dmm_list_url_digitalが空文字列の場合FANZA商品一覧ボタンが表示されない", async () => {
+    mockGetActressDetail.mockResolvedValue({
+      ...mockActressWithDmmUrl,
+      dmm_list_url_digital: ""
+    });
+
+    render(await ActressDetailContainer({ personId: 5 }));
+
+    // FANZA商品一覧ボタンが表示されないことを確認
+    const fanzaButton = screen.queryByRole("link", { name: /FANZA商品一覧へ/ });
+    expect(fanzaButton).not.toBeInTheDocument();
   });
 });
