@@ -44,7 +44,8 @@ async def get_person_detail(person_id: int):
             person_id=person_data['person_id'],
             name=person_data['name'],
             image_path=person_data['base_image_path'] or "",
-            search_count=search_count
+            search_count=search_count,
+            dmm_list_url_digital=person_data.get('dmm_list_url_digital')
         )
         
     except HTTPException:

@@ -36,6 +36,7 @@ class PersonDetailResponse(BaseModel):
     name: str
     image_path: str
     search_count: int
+    dmm_list_url_digital: Optional[str] = None
 
 class PersonListItem(BaseModel):
     """人物リストアイテム"""

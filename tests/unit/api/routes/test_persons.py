@@ -301,3 +301,115 @@ class TestPersonsAPI:
 
         # closeメソッドは必ず呼ばれることを確認
         mock_person_db.close.assert_called_once()
+
+    @patch('src.api.routes.persons.RankingDatabase')
+    @patch('src.api.routes.persons.FaceDatabase')
+    def test_get_person_detail_with_dmm_list_url_digital(self, mock_face_db_class, mock_ranking_db_class, client):
+        """dmm_list_url_digitalフィールドを含む人物詳細取得のテスト"""
+        # FaceDatabaseのモックセットアップ
+        mock_face_db = MagicMock()
+        mock_face_db_class.return_value = mock_face_db
+        dmm_url = "https://al.dmm.co.jp/?lurl=https%3A%2F%2Fwww.dmm.co.jp%2F"
+        mock_face_db.get_person_detail.return_value = {
+            'person_id': 1,
+            'name': 'テスト女優',
+            'base_image_path': 'data/images/base/test_actress.jpg',
+            'dmm_list_url_digital': dmm_url
+        }
+
+        # RankingDatabaseのモックセットアップ
+        mock_ranking_db = MagicMock()
+        mock_ranking_db_class.return_value = mock_ranking_db
+        mock_ranking_db.get_person_search_count.return_value = 5
+
+        # APIリクエスト
+        response = client.get("/api/persons/1")
+
+        # レスポンス確認
+        assert response.status_code == 200
+        data = response.json()
+        assert data['person_id'] == 1
+        assert data['name'] == 'テスト女優'
+        assert data['image_path'] == 'data/images/base/test_actress.jpg'
+        assert data['search_count'] == 5
+        assert data['dmm_list_url_digital'] == dmm_url
+
+        # メソッド呼び出し確認
+        mock_face_db.get_person_detail.assert_called_once_with(1)
+        mock_ranking_db.get_person_search_count.assert_called_once_with(1)
+        mock_face_db.close.assert_called_once()
+        mock_ranking_db.close.assert_called_once()
+
+    @patch('src.api.routes.persons.RankingDatabase')
+    @patch('src.api.routes.persons.FaceDatabase')
+    def test_get_person_detail_without_dmm_list_url_digital(self, mock_face_db_class, mock_ranking_db_class, client):
+        """dmm_list_url_digitalフィールドがない場合のテスト"""
+        # FaceDatabaseのモックセットアップ（dmm_list_url_digitalなし）
+        mock_face_db = MagicMock()
+        mock_face_db_class.return_value = mock_face_db
+        mock_face_db.get_person_detail.return_value = {
+            'person_id': 1,
+            'name': 'テスト女優',
+            'base_image_path': 'data/images/base/test_actress.jpg',
+            'dmm_list_url_digital': None
+        }
+
+        # RankingDatabaseのモックセットアップ
+        mock_ranking_db = MagicMock()
+        mock_ranking_db_class.return_value = mock_ranking_db
+        mock_ranking_db.get_person_search_count.return_value = 5
+
+        # APIリクエスト
+        response = client.get("/api/persons/1")
+
+        # レスポンス確認
+        assert response.status_code == 200
+        data = response.json()
+        assert data['person_id'] == 1
+        assert data['name'] == 'テスト女優'
+        assert data['image_path'] == 'data/images/base/test_actress.jpg'
+        assert data['search_count'] == 5
+        assert data['dmm_list_url_digital'] is None
+
+        # メソッド呼び出し確認
+        mock_face_db.get_person_detail.assert_called_once_with(1)
+        mock_ranking_db.get_person_search_count.assert_called_once_with(1)
+        mock_face_db.close.assert_called_once()
+        mock_ranking_db.close.assert_called_once()
+
+    @patch('src.api.routes.persons.RankingDatabase')
+    @patch('src.api.routes.persons.FaceDatabase')
+    def test_get_person_detail_with_empty_dmm_list_url_digital(self, mock_face_db_class, mock_ranking_db_class, client):
+        """dmm_list_url_digitalが空文字列の場合のテスト"""
+        # FaceDatabaseのモックセットアップ（dmm_list_url_digitalが空文字列）
+        mock_face_db = MagicMock()
+        mock_face_db_class.return_value = mock_face_db
+        mock_face_db.get_person_detail.return_value = {
+            'person_id': 1,
+            'name': 'テスト女優',
+            'base_image_path': 'data/images/base/test_actress.jpg',
+            'dmm_list_url_digital': ""
+        }
+
+        # RankingDatabaseのモックセットアップ
+        mock_ranking_db = MagicMock()
+        mock_ranking_db_class.return_value = mock_ranking_db
+        mock_ranking_db.get_person_search_count.return_value = 5
+
+        # APIリクエスト
+        response = client.get("/api/persons/1")
+
+        # レスポンス確認
+        assert response.status_code == 200
+        data = response.json()
+        assert data['person_id'] == 1
+        assert data['name'] == 'テスト女優'
+        assert data['image_path'] == 'data/images/base/test_actress.jpg'
+        assert data['search_count'] == 5
+        assert data['dmm_list_url_digital'] == ""
+
+        # メソッド呼び出し確認
+        mock_face_db.get_person_detail.assert_called_once_with(1)
+        mock_ranking_db.get_person_search_count.assert_called_once_with(1)
+        mock_face_db.close.assert_called_once()
+        mock_ranking_db.close.assert_called_once()

@@ -667,3 +667,60 @@ class TestPersonDatabase:
         result = person_db.get_persons_list()
         assert len(result) == 1
         assert result[0]['dmm_actress_id'] == 12345
+
+    def test_get_person_detail_with_dmm_list_url_digital(self, person_db):
+        """dmm_list_url_digitalフィールドを含む人物詳細取得のテスト"""
+        # 人物を作成
+        person_id = person_db.create_person("テスト女優")
+        
+        # プロフィールにdmm_list_url_digitalを含めて作成
+        dmm_url = "https://al.dmm.co.jp/?lurl=https%3A%2F%2Fwww.dmm.co.jp%2F"
+        person_db.cursor.execute("""
+            INSERT INTO person_profiles (person_id, dmm_list_url_digital) 
+            VALUES (?, ?)
+        """, (person_id, dmm_url))
+        person_db.conn.commit()
+        
+        # 詳細情報を取得
+        detail = person_db.get_person_detail(person_id)
+        
+        # 結果を確認
+        assert detail is not None
+        assert detail['dmm_list_url_digital'] == dmm_url
+        assert detail['person_id'] == person_id
+        assert detail['name'] == "テスト女優"
+
+    def test_get_person_detail_without_dmm_list_url_digital(self, person_db):
+        """dmm_list_url_digitalフィールドがない場合のテスト"""
+        # 人物を作成（プロフィールなし）
+        person_id = person_db.create_person("テスト女優")
+        
+        # 詳細情報を取得
+        detail = person_db.get_person_detail(person_id)
+        
+        # 結果を確認
+        assert detail is not None
+        assert detail['dmm_list_url_digital'] is None
+        assert detail['person_id'] == person_id
+        assert detail['name'] == "テスト女優"
+
+    def test_get_person_detail_with_empty_dmm_list_url_digital(self, person_db):
+        """dmm_list_url_digitalが空文字列の場合のテスト"""
+        # 人物を作成
+        person_id = person_db.create_person("テスト女優")
+        
+        # プロフィールに空文字列のdmm_list_url_digitalを設定
+        person_db.cursor.execute("""
+            INSERT INTO person_profiles (person_id, dmm_list_url_digital) 
+            VALUES (?, ?)
+        """, (person_id, ""))
+        person_db.conn.commit()
+        
+        # 詳細情報を取得
+        detail = person_db.get_person_detail(person_id)
+        
+        # 結果を確認
+        assert detail is not None
+        assert detail['dmm_list_url_digital'] == ""
+        assert detail['person_id'] == person_id
+        assert detail['name'] == "テスト女優"

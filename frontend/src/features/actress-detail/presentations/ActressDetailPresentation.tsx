@@ -6,9 +6,10 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 // ProductsContainerはページレベルで呼び出されるため削除
-import { Heart, Search } from "lucide-react";
+import { ExternalLink, Heart, Search } from "lucide-react";
 import type { ActressDetail } from "../api";
 
 interface ActressDetailPresentationProps {
@@ -62,10 +63,27 @@ export function ActressDetailPresentation({ actress }: ActressDetailPresentation
 
                 <div className="bg-zinc-700/50 rounded-lg p-4">
                   <h3 className="text-lg font-semibold text-white mb-2">プロフィール</h3>
-                  <p className="text-zinc-300 text-sm">
+                  <p className="text-zinc-300 text-sm mb-4">
                     人気急上昇中の注目女優です。多くのファンに愛されており、 検索回数も
                     {actress.search_count}回を記録しています。
                   </p>
+
+                  {/* FANZA商品一覧へのボタン */}
+                  {actress.dmm_list_url_digital && (
+                    <Button
+                      asChild
+                      className="bg-pink-600 hover:bg-pink-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-200 inline-flex items-center gap-2"
+                    >
+                      <a
+                        href={actress.dmm_list_url_digital}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        FANZA商品一覧へ
+                      </a>
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>

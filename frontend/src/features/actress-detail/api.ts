@@ -5,6 +5,7 @@ export interface ActressDetail {
   name: string;
   image_path: string;
   search_count: number;
+  dmm_list_url_digital?: string;
 }
 
 export interface AffiliateProduct {

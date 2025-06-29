@@ -258,8 +258,10 @@ class PersonDatabase:
             Optional[Dict[str, Any]]: 人物詳細情報、存在しない場合はNone
         """
         self.cursor.execute("""
-            SELECT p.person_id, p.name, p.base_image_path, p.dmm_actress_id
+            SELECT p.person_id, p.name, p.base_image_path, p.dmm_actress_id,
+                   pr.dmm_list_url_digital
             FROM persons p
+            LEFT JOIN person_profiles pr ON p.person_id = pr.person_id
             WHERE p.person_id = ?
         """, (person_id,))
         
@@ -269,7 +271,8 @@ class PersonDatabase:
                 'person_id': row['person_id'],
                 'name': row['name'],
                 'base_image_path': row['base_image_path'],
-                'dmm_actress_id': row['dmm_actress_id']
+                'dmm_actress_id': row['dmm_actress_id'],
+                'dmm_list_url_digital': row['dmm_list_url_digital']
             }
         return None
     
