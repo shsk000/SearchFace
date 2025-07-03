@@ -1,4 +1,4 @@
-Sitemap: https://www.sokkuri-av.lol/sitemap.xml
+Sitemap: https://www.sokkuri-av.lol/sitemap-alt.xml
 
 User-agent: *
 Allow: /
