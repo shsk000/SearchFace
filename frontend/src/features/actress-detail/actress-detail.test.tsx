@@ -61,7 +61,7 @@ const mockActressWithDmmUrl: ActressDetail = {
   name: "FANZA URL付き女優",
   image_path: "https://example.com/actress.jpg",
   search_count: 25,
-  dmm_list_url_digital: "https://al.dmm.co.jp/?lurl=https%3A%2F%2Fwww.dmm.co.jp%2F"
+  dmm_list_url_digital: "https://al.dmm.co.jp/?lurl=https%3A%2F%2Fwww.dmm.co.jp%2F",
 };
 
 const mockActressWithoutDmmUrl: ActressDetail = {
@@ -69,7 +69,7 @@ const mockActressWithoutDmmUrl: ActressDetail = {
   name: "FANZA URLなし女優",
   image_path: "https://example.com/actress.jpg",
   search_count: 15,
-  dmm_list_url_digital: undefined
+  dmm_list_url_digital: undefined,
 };
 
 describe("Actress Detail Feature Integration", () => {
@@ -247,7 +247,10 @@ describe("Actress Detail Feature Integration", () => {
     // FANZA商品一覧ボタンの表示確認
     const fanzaButton = screen.getByRole("link", { name: /FANZA商品一覧へ/ });
     expect(fanzaButton).toBeInTheDocument();
-    expect(fanzaButton).toHaveAttribute("href", "https://al.dmm.co.jp/?lurl=https%3A%2F%2Fwww.dmm.co.jp%2F");
+    expect(fanzaButton).toHaveAttribute(
+      "href",
+      "https://al.dmm.co.jp/?lurl=https%3A%2F%2Fwww.dmm.co.jp%2F",
+    );
     expect(fanzaButton).toHaveAttribute("target", "_blank");
     expect(fanzaButton).toHaveAttribute("rel", "noopener noreferrer");
   });
@@ -270,7 +273,7 @@ describe("Actress Detail Feature Integration", () => {
     // ボタンのアクセシビリティ属性確認
     const fanzaButton = screen.getByRole("link", { name: /FANZA商品一覧へ/ });
     expect(fanzaButton).toHaveClass("bg-pink-600", "hover:bg-pink-700");
-    
+
     // アイコンの表示確認
     const externalLinkIcon = fanzaButton.querySelector("svg");
     expect(externalLinkIcon).toBeInTheDocument();
@@ -295,7 +298,7 @@ describe("Actress Detail Feature Integration", () => {
   it("dmm_list_url_digitalが空文字列の場合FANZA商品一覧ボタンが表示されない", async () => {
     mockGetActressDetail.mockResolvedValue({
       ...mockActressWithDmmUrl,
-      dmm_list_url_digital: ""
+      dmm_list_url_digital: "",
     });
 
     render(await ActressDetailContainer({ personId: 5 }));
