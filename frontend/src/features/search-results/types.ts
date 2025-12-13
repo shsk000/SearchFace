@@ -10,10 +10,15 @@ export const searchSessionResultSchema = z.object({
   image_path: z.string(),
 });
 
+// メタデータの型定義
+export const searchSessionMetadataSchema = z.looseObject({
+  processing_time: z.number().optional(),
+});
+
 export const searchSessionResponseSchema = z.object({
   session_id: z.string(),
   search_timestamp: z.string(),
-  metadata: z.record(z.any()).optional(),
+  metadata: searchSessionMetadataSchema.optional(),
   results: z.array(searchSessionResultSchema),
 });
 
