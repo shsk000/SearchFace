@@ -211,5 +211,10 @@ class RankingDatabase:
             return 0
 
     def close(self):
-        """データベース接続を閉じる (何もしない、接続管理は外部で行う)"""
-        pass
+        """データベース接続を閉じる"""
+        if self.conn:
+            try:
+                self.conn.close()
+            except Exception:
+                pass
+            self.conn = None

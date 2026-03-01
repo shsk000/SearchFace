@@ -62,27 +62,40 @@ async def search_face(
     if image.size > 500 * 1024:  # 500KB
         raise ImageValidationException(ErrorCode.IMAGE_TOO_LARGE)
 
+    db = None
+    search_db = None
+    ranking_db = None
+    img = None
+
     try:
         # 画像の読み込みと検証
-        contents = await image.read()
-        img = Image.open(io.BytesIO(contents))
-        # RGBA画像をRGBに変換
-        if img.mode == 'RGBA':
-            img = img.convert('RGB')
-        img_array = np.array(img)
-    except Exception as e:
-        logger.error(f"画像の読み込みに失敗: {str(e)}")
-        raise ImageValidationException(ErrorCode.IMAGE_CORRUPTED)
+        try:
+            contents = await image.read()
+            img = Image.open(io.BytesIO(contents))
+            # RGBA画像をRGBに変換
+            if img.mode == 'RGBA':
+                img = img.convert('RGB')
+            img_array = np.array(img)
+        except Exception as e:
+            logger.error(f"画像の読み込みに失敗: {str(e)}")
+            raise ImageValidationException(ErrorCode.IMAGE_CORRUPTED)
+        finally:
+            # 画像バッファを早期解放
+            del contents
+            if img is not None:
+                img.close()
+                img = None
 
-    # 顔の検出
-    # 複数顔検出時はImageValidationException(ErrorCode.MULTIPLE_FACES)がraiseされる
-    face_encoding = face_utils.get_face_encoding_from_array(img_array)
-    if face_encoding is None:
-        raise ImageValidationException(ErrorCode.NO_FACE_DETECTED)
+        # 顔の検出
+        # 複数顔検出時はImageValidationException(ErrorCode.MULTIPLE_FACES)がraiseされる
+        face_encoding = face_utils.get_face_encoding_from_array(img_array)
+        del img_array  # numpy配列を早期解放
 
-    # 類似顔の検索
-    db = FaceDatabase()
-    try:
+        if face_encoding is None:
+            raise ImageValidationException(ErrorCode.NO_FACE_DETECTED)
+
+        # 類似顔の検索
+        db = FaceDatabase()
         search_start = time.time()
         results = db.search_similar_faces(face_encoding, top_k=top_k)
         search_time = time.time() - search_start
@@ -167,6 +180,14 @@ async def search_face(
     except Exception as e:
         logger.error(f"検索処理でエラーが発生: {str(e)}")
         raise ServerException(ErrorCode.INTERNAL_ERROR)
+    finally:
+        # 全データベース接続を確実にクローズ
+        if db is not None:
+            db.close()
+        if search_db is not None:
+            search_db.close()
+        if ranking_db is not None:
+            ranking_db.close()
 
 @router.get("/search/{session_id}", response_model=SearchSessionResponse)
 async def get_search_session_results(session_id: str):
@@ -185,6 +206,7 @@ async def get_search_session_results(session_id: str):
     if not is_sync_complete():
         raise SERVICE_UNAVAILABLE_EXCEPTION
 
+    search_db = None
     try:
         search_db = SearchDatabase()
         session_data = search_db.get_search_session_results(session_id)
@@ -221,3 +243,6 @@ async def get_search_session_results(session_id: str):
     except Exception as e:
         logger.error(f"セッション結果取得でエラーが発生: {str(e)}")
         raise ServerException(ErrorCode.INTERNAL_ERROR)
+    finally:
+        if search_db is not None:
+            search_db.close()
