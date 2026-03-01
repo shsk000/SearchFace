@@ -88,20 +88,21 @@ async def get_recommended_products(
     Returns:
         JSONResponse: 商品情報リスト
     """
+    person_db = None
     try:
         logger.info(f"女優別商品取得API開始 - 人物ID: {person_id}, 件数: {limit}")
-        
+
         # 人物情報取得
         person_db = PersonDatabase()
         person_info = person_db.get_person_by_id(person_id)
-        
+
         if not person_info:
             logger.warning(f"指定された人物ID({person_id})が見つかりません")
             raise HTTPException(
                 status_code=404,
                 detail=f"人物ID {person_id} が見つかりません"
             )
-        
+
         # DMM女優IDチェック
         dmm_actress_id = person_info.get('dmm_actress_id')
         if not dmm_actress_id:
@@ -110,15 +111,15 @@ async def get_recommended_products(
                 status_code=400,
                 detail=f"人物ID {person_id} にDMM女優IDが設定されていません"
             )
-        
+
         # 商品取得（すでにAPIレスポンス形式で返される）
         response_data = product_service.get_actress_products(
             dmm_actress_id=dmm_actress_id,
             limit=min(limit, 20)  # 最大20件制限
         )
-        
+
         logger.info(f"女優別商品取得API完了 - 人物ID: {person_id}, 取得件数: {len(response_data)}")
-        
+
         return JSONResponse(
             status_code=200,
             content={
@@ -129,7 +130,7 @@ async def get_recommended_products(
                 "total_count": len(response_data)
             }
         )
-        
+
     except HTTPException:
         # HTTPExceptionはそのまま再発生
         raise
@@ -140,6 +141,9 @@ async def get_recommended_products(
             status_code=500,
             detail="内部サーバーエラーが発生しました"
         )
+    finally:
+        if person_db is not None:
+            person_db.close()
 
 
 @router.get("/products/by-dmm-id/{dmm_actress_id}")

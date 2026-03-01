@@ -12,18 +12,22 @@ logger = log_utils.get_logger(__name__)
 
 class FaceIndexDatabase:
     """顔インデックス管理に特化したデータベースクラス
-    
+
     責務:
     - face_images テーブルの管理
     - face_indexes テーブルの管理
     - FAISS インデックスの管理
     - 類似検索処理
     """
-    
+
     # データベース関連の設定
     DB_PATH = "data/face_database.db"
     INDEX_PATH = "data/face.index"
     VECTOR_DIMENSION = 128  # face_recognitionのエンコーディング次元
+
+    # クラスレベルのFAISSインデックスキャッシュ（リクエスト毎の再読み込みを防止）
+    _cached_index = None
+    _cached_index_path = None
     
     def __init__(self, db_path: Optional[str] = None, index_path: Optional[str] = None):
         """顔インデックスデータベースの初期化
@@ -57,25 +61,37 @@ class FaceIndexDatabase:
         logger.debug("All required tables exist")
     
     def _load_index(self):
-        """FAISSインデックスをロード"""
+        """FAISSインデックスをロード（クラスレベルキャッシュで再利用）"""
+        # キャッシュ済みインデックスがあり、同じパスなら再利用
+        if (FaceIndexDatabase._cached_index is not None
+                and FaceIndexDatabase._cached_index_path == self.index_path):
+            self.index = FaceIndexDatabase._cached_index
+            logger.debug(f"キャッシュ済みFAISSインデックスを使用。登録ベクトル数: {self.index.ntotal}")
+            return
+
         try:
-            logger.info("既存のインデックスを読み込み中...")
+            logger.info("FAISSインデックスをディスクから読み込み中...")
             if not os.path.exists(self.index_path):
                 logger.error(f"FAISSインデックスファイルが存在しません: {self.index_path}")
                 logger.error("FAISSインデックスの復旧が必要です。以下のコマンドを実行してください:")
                 logger.error("docker-compose exec backend python src/rebuild_faiss_index.py")
                 raise FileNotFoundError(f"インデックスファイルが存在しません: {self.index_path}")
-            
+
             self.index = faiss.read_index(self.index_path)
             logger.info(f"インデックスの読み込み完了。登録ベクトル数: {self.index.ntotal}")
-            
+
             # インデックスが空の場合はエラー
             if self.index.ntotal == 0:
                 logger.error("FAISSインデックスが空です。FAISSインデックスの復旧が必要です。")
                 logger.error("以下のコマンドを実行してください:")
                 logger.error("docker-compose exec backend python src/rebuild_faiss_index.py")
                 raise RuntimeError("インデックスが空です")
-                
+
+            # クラスレベルにキャッシュ
+            FaceIndexDatabase._cached_index = self.index
+            FaceIndexDatabase._cached_index_path = self.index_path
+            logger.info("FAISSインデックスをキャッシュしました")
+
         except (RuntimeError, FileNotFoundError) as e:
             logger.error(f"FAISSインデックスの読み込みに失敗しました: {str(e)}")
             raise
